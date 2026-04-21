@@ -1,0 +1,5 @@
+{
+  "name": "TETA GPT",
+  "description": "A sophisticated GPT platform featuring real-time text and voice interaction, personalized dashboards, and secure Google OAuth integration.",
+  "requestFramePermissions": ["microphone"]
+}

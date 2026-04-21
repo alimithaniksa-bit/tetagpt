@@ -17,6 +17,7 @@ import {
   X,
   Sparkles,
   ChevronRight,
+  ChevronDown,
   Image as ImageIcon,
   Download,
   Waves,
@@ -370,6 +371,7 @@ export default function App() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
   const [showInstructions, setShowInstructions] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
@@ -962,87 +964,157 @@ export default function App() {
             </h2>
           </div>
 
-          <div className="flex items-center gap-1.5 md:gap-3 overflow-x-auto no-scrollbar max-w-[60%] sm:max-w-none">
-            <motion.button 
-              whileHover={{ scale: 1.05, y: -2 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setIsVoiceMode(!isVoiceMode)}
-              className={cn(
-                "p-2 md:p-2.5 rounded-xl md:rounded-2xl transition-all flex items-center gap-2 text-[9px] md:text-[10px] font-black uppercase tracking-widest md:tracking-[0.2em] border shrink-0",
-                isVoiceMode ? "text-emerald-500 bg-emerald-500/10 border-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.2)]" : "text-neutral-500 hover:bg-white/5 border-transparent"
-              )}
-            >
-              <Waves className="w-4 h-4 md:w-5 md:h-5" />
-              <span className="hidden lg:inline">Voice</span>
-            </motion.button>
-            <motion.button 
-              whileHover={{ scale: 1.05, y: -2 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => {
-                setIsCodingMode(!isCodingMode);
-                setIsGameMode(false);
-                setIs3DMode(false);
-                setIsCloneMode(false);
-              }}
-              className={cn(
-                "p-2 md:p-2.5 rounded-xl md:rounded-2xl transition-all flex items-center gap-2 text-[9px] md:text-[10px] font-black uppercase tracking-widest md:tracking-[0.2em] border shrink-0",
-                isCodingMode ? "text-emerald-500 bg-emerald-500/10 border-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.2)]" : "text-neutral-500 hover:bg-white/5 border-transparent"
-              )}
-            >
-              <Zap className="w-4 h-4 md:w-5 md:h-5" />
-              <span className="hidden lg:inline">Builder</span>
-            </motion.button>
-            <motion.button 
-              whileHover={{ scale: 1.05, y: -2 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => {
-                setIsGameMode(!isGameMode);
-                setIsCodingMode(false);
-                setIs3DMode(false);
-                setIsCloneMode(false);
-              }}
-              className={cn(
-                "p-2 md:p-2.5 rounded-xl md:rounded-2xl transition-all flex items-center gap-2 text-[9px] md:text-[10px] font-black uppercase tracking-widest md:tracking-[0.2em] border shrink-0",
-                isGameMode ? "text-emerald-500 bg-emerald-500/10 border-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.2)]" : "text-neutral-500 hover:bg-white/5 border-transparent"
-              )}
-            >
-              <Gamepad2 className="w-4 h-4 md:w-5 md:h-5" />
-              <span className="hidden lg:inline">Game</span>
-            </motion.button>
-            <motion.button 
-              whileHover={{ scale: 1.05, y: -2 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => {
-                setIs3DMode(!is3DMode);
-                setIsCodingMode(false);
-                setIsGameMode(false);
-                setIsCloneMode(false);
-              }}
-              className={cn(
-                "p-2 md:p-2.5 rounded-xl md:rounded-2xl transition-all flex items-center gap-2 text-[9px] md:text-[10px] font-black uppercase tracking-widest md:tracking-[0.2em] border shrink-0",
-                is3DMode ? "text-emerald-500 bg-emerald-500/10 border-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.2)]" : "text-neutral-500 hover:bg-white/5 border-transparent"
-              )}
-            >
-              <Box className="w-4 h-4 md:w-5 md:h-5" />
-              <span className="hidden lg:inline">3D</span>
-            </motion.button>
-            <motion.button 
-              whileHover={{ scale: 1.05, y: -2 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => {
-                setIsCloneMode(!isCloneMode);
-                setIsCodingMode(false);
-                setIsGameMode(false);
-                setIs3DMode(false);
-              }}
-              className={cn(
-                "p-2 md:p-2.5 rounded-xl md:rounded-2xl transition-all flex items-center gap-2 text-[9px] md:text-[10px] font-black uppercase tracking-widest md:tracking-[0.2em] border shrink-0",
-                isCloneMode ? "text-emerald-500 bg-emerald-500/10 border-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.2)]" : "text-neutral-500 hover:bg-white/5 border-transparent"
-              )}
-            >
-              <Copy className="w-4 h-4 md:w-5 md:h-5" />
-              <span className="hidden lg:inline">Clone</span>
-            </motion.button>
+          <div className="flex items-center gap-1.5 md:gap-3">
+            {/* Desktop Mode Buttons */}
+            <div className="hidden sm:flex items-center gap-1.5 md:gap-3">
+              <motion.button 
+                whileHover={{ scale: 1.05, y: -2 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setIsVoiceMode(!isVoiceMode)}
+                className={cn(
+                  "p-2 md:p-2.5 rounded-xl md:rounded-2xl transition-all flex items-center gap-2 text-[10px] font-black uppercase tracking-widest border shrink-0",
+                  isVoiceMode ? "text-emerald-500 bg-emerald-500/10 border-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.2)]" : "text-neutral-500 hover:bg-white/5 border-transparent"
+                )}
+              >
+                <Waves className="w-4 h-4 md:w-5 md:h-5" />
+                <span className="hidden lg:inline">Voice</span>
+              </motion.button>
+              <div className="w-[1px] h-6 bg-white/5 mx-1" />
+              <motion.button 
+                whileHover={{ scale: 1.05, y: -2 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  setIsCodingMode(!isCodingMode);
+                  setIsGameMode(false);
+                  setIs3DMode(false);
+                  setIsCloneMode(false);
+                }}
+                className={cn(
+                  "p-2 md:p-2.5 rounded-xl md:rounded-2xl transition-all flex items-center gap-2 text-[10px] font-black uppercase tracking-widest border shrink-0",
+                  isCodingMode ? "text-emerald-500 bg-emerald-500/10 border-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.2)]" : "text-neutral-500 hover:bg-white/5 border-transparent"
+                )}
+              >
+                <Zap className="w-4 h-4 md:w-5 md:h-5" />
+                <span className="hidden lg:inline">Builder</span>
+              </motion.button>
+              <motion.button 
+                whileHover={{ scale: 1.05, y: -2 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  setIsGameMode(!isGameMode);
+                  setIsCodingMode(false);
+                  setIs3DMode(false);
+                  setIsCloneMode(false);
+                }}
+                className={cn(
+                  "p-2 md:p-2.5 rounded-xl md:rounded-2xl transition-all flex items-center gap-2 text-[10px] font-black uppercase tracking-widest border shrink-0",
+                  isGameMode ? "text-emerald-500 bg-emerald-500/10 border-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.2)]" : "text-neutral-500 hover:bg-white/5 border-transparent"
+                )}
+              >
+                <Gamepad2 className="w-4 h-4 md:w-5 md:h-5" />
+                <span className="hidden lg:inline">Game</span>
+              </motion.button>
+              <motion.button 
+                whileHover={{ scale: 1.05, y: -2 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  setIs3DMode(!is3DMode);
+                  setIsCodingMode(false);
+                  setIsGameMode(false);
+                  setIsCloneMode(false);
+                }}
+                className={cn(
+                  "p-2 md:p-2.5 rounded-xl md:rounded-2xl transition-all flex items-center gap-2 text-[10px] font-black uppercase tracking-widest border shrink-0",
+                  is3DMode ? "text-emerald-500 bg-emerald-500/10 border-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.2)]" : "text-neutral-500 hover:bg-white/5 border-transparent"
+                )}
+              >
+                <Box className="w-4 h-4 md:w-5 md:h-5" />
+                <span className="hidden lg:inline">3D</span>
+              </motion.button>
+              <motion.button 
+                whileHover={{ scale: 1.05, y: -2 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  setIsCloneMode(!isCloneMode);
+                  setIsCodingMode(false);
+                  setIsGameMode(false);
+                  setIs3DMode(false);
+                }}
+                className={cn(
+                  "p-2 md:p-2.5 rounded-xl md:rounded-2xl transition-all flex items-center gap-2 text-[10px] font-black uppercase tracking-widest border shrink-0",
+                  isCloneMode ? "text-emerald-500 bg-emerald-500/10 border-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.2)]" : "text-neutral-500 hover:bg-white/5 border-transparent"
+                )}
+              >
+                <Copy className="w-4 h-4 md:w-5 md:h-5" />
+                <span className="hidden lg:inline">Clone</span>
+              </motion.button>
+            </div>
+
+            {/* Mobile Mode Selector */}
+            <div className="sm:hidden relative">
+              <motion.button
+                whileTap={{ scale: 0.9 }}
+                onClick={() => setShowMobileMenu(!showMobileMenu)}
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-500 text-[10px] font-black uppercase tracking-widest"
+              >
+                {isCodingMode ? <Zap className="w-3 h-3" /> : isGameMode ? <Gamepad2 className="w-3 h-3" /> : is3DMode ? <Box className="w-3 h-3" /> : isCloneMode ? <Copy className="w-3 h-3" /> : <Sparkles className="w-3 h-3" />}
+                {isCodingMode ? 'Builder' : isGameMode ? 'Game' : is3DMode ? '3D' : isCloneMode ? 'Clone' : 'Mode'}
+                <ChevronDown className={cn("w-3 h-3 transition-transform text-white/40", showMobileMenu ? "rotate-180" : "")} />
+              </motion.button>
+
+              <AnimatePresence>
+                {showMobileMenu && (
+                  <>
+                    <motion.div 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      onClick={() => setShowMobileMenu(false)}
+                      className="fixed inset-0 z-40"
+                    />
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      className="absolute right-0 top-full mt-2 w-48 bg-[#0A0A0A] border border-white/10 rounded-2xl p-2 shadow-2xl z-50 overflow-hidden"
+                    >
+                      <button 
+                        onClick={() => { setIsCodingMode(true); setIsGameMode(false); setIs3DMode(false); setIsCloneMode(false); setShowMobileMenu(false); }}
+                        className={cn("w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all", isCodingMode ? "bg-emerald-500 text-black" : "text-neutral-400 hover:bg-white/5")}
+                      >
+                        <Zap className="w-4 h-4" /> Builder
+                      </button>
+                      <button 
+                        onClick={() => { setIsGameMode(true); setIsCodingMode(false); setIs3DMode(false); setIsCloneMode(false); setShowMobileMenu(false); }}
+                        className={cn("w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all", isGameMode ? "bg-emerald-500 text-black" : "text-neutral-400 hover:bg-white/5")}
+                      >
+                        <Gamepad2 className="w-4 h-4" /> Game
+                      </button>
+                      <button 
+                        onClick={() => { setIs3DMode(true); setIsCodingMode(false); setIsGameMode(false); setIsCloneMode(false); setShowMobileMenu(false); }}
+                        className={cn("w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all", is3DMode ? "bg-emerald-500 text-black" : "text-neutral-400 hover:bg-white/5")}
+                      >
+                        <Box className="w-4 h-4" /> 3D Mode
+                      </button>
+                      <button 
+                        onClick={() => { setIsCloneMode(true); setIsCodingMode(false); setIsGameMode(false); setIs3DMode(false); setShowMobileMenu(false); }}
+                        className={cn("w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all", isCloneMode ? "bg-emerald-500 text-black" : "text-neutral-400 hover:bg-white/5")}
+                      >
+                        <Copy className="w-4 h-4" /> Clone
+                      </button>
+                      <div className="h-[1px] bg-white/5 my-1" />
+                      <button 
+                        onClick={() => { setIsVoiceMode(!isVoiceMode); setShowMobileMenu(false); }}
+                        className={cn("w-full flex items-center gap-3 px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all", isVoiceMode ? "text-emerald-500" : "text-neutral-400 hover:bg-white/5")}
+                      >
+                        <Waves className="w-4 h-4" /> Voice Mode
+                      </button>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
+
             <div className="w-[1px] h-8 bg-white/5 mx-1 hidden sm:block shrink-0" />
             <motion.button 
               whileHover={{ scale: 1.1 }}
@@ -1050,7 +1122,7 @@ export default function App() {
               onClick={() => setAutoSpeak(!autoSpeak)}
               className={cn(
                 "p-2 md:p-3 rounded-xl md:rounded-2xl transition-all border shrink-0",
-                autoSpeak ? "text-emerald-500 bg-emerald-500/10 border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)]" : "text-neutral-500 hover:bg-white/5 border-transparent"
+                autoSpeak ? "text-emerald-500 bg-emerald-500/10 border-emerald-500/20" : "text-neutral-500 border-transparent hover:bg-white/5"
               )}
               title="Auto-speak replies"
             >
@@ -1155,8 +1227,8 @@ export default function App() {
               {/* Right Side: Studio View */}
               <div className="flex-1 flex flex-col overflow-hidden relative perspective-1000">
                 {/* Modern Toolbar */}
-                <div className="h-auto min-h-[4rem] border-b border-white/5 flex flex-col sm:flex-row items-center justify-between px-4 md:px-6 py-3 sm:py-0 bg-white/5 backdrop-blur-2xl z-20 shadow-xl gap-4 sm:gap-0">
-                  <div className="flex items-center gap-2 md:gap-3 w-full sm:w-auto overflow-x-auto no-scrollbar pb-1 sm:pb-0">
+                <div className="h-auto min-h-[3.5rem] border-b border-white/5 flex flex-col sm:flex-row items-center justify-between px-3 md:px-6 py-2 sm:py-0 bg-white/5 backdrop-blur-2xl z-20 shadow-xl gap-2 sm:gap-0">
+                  <div className="flex items-center gap-2 md:gap-3 w-full sm:w-auto overflow-x-auto no-scrollbar pb-0.5 sm:pb-0">
                     <button 
                       onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                       className="lg:hidden p-2.5 text-neutral-500 hover:text-white bg-white/5 rounded-xl border border-white/5 shrink-0"
@@ -1167,35 +1239,27 @@ export default function App() {
                       <button 
                         onClick={() => setActiveTab('preview')}
                         className={cn(
-                          "px-4 sm:px-6 h-9 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 relative overflow-hidden",
+                          "px-3 sm:px-6 h-9 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 relative overflow-hidden",
                           activeTab === 'preview' ? "bg-emerald-500 text-black shadow-[0_0_20px_rgba(16,185,129,0.4)]" : "text-neutral-500 hover:text-neutral-300"
                         )}
                       >
                         {isGameMode ? <Gamepad2 className="w-3.5 h-3.5" /> : is3DMode ? <Box className="w-3.5 h-3.5" /> : <Zap className="w-3.5 h-3.5" />}
-                        <span className="hidden xs:inline">{isGameMode ? 'Play' : is3DMode ? '3D View' : 'Preview'}</span>
-                        {is3DMode && activeTab === 'preview' && (
-                          <motion.div 
-                            initial={{ x: '-100%' }}
-                            animate={{ x: '100%' }}
-                            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none"
-                          />
-                        )}
+                        <span className="xs:inline">{isGameMode ? 'Play' : is3DMode ? '3D View' : 'Preview'}</span>
                       </button>
                       <button 
                         onClick={() => setActiveTab('code')}
                         className={cn(
-                          "px-4 sm:px-6 h-9 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
+                          "px-3 sm:px-6 h-9 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2",
                           activeTab === 'code' ? "bg-emerald-500 text-black shadow-[0_0_20px_rgba(16,185,129,0.4)]" : "text-neutral-500 hover:text-neutral-300"
                         )}
                       >
                         <ImageIcon className="w-3.5 h-3.5" />
-                        <span className="hidden xs:inline">Code</span>
+                        <span className="xs:inline">Code</span>
                       </button>
                     </div>
 
                     {activeTab === 'preview' && !isGameMode && !is3DMode && (
-                      <div className="flex bg-neutral-900/80 p-1 rounded-2xl border border-white/5 backdrop-blur-md shrink-0">
+                      <div className="flex bg-neutral-900/80 p-1 rounded-2xl border border-white/5 backdrop-blur-md shrink-0 sm:flex hidden">
                         <button 
                           onClick={() => setPreviewDevice('mobile')}
                           className={cn("p-2 rounded-xl transition-all", previewDevice === 'mobile' ? "bg-emerald-500 text-black shadow-lg" : "text-neutral-600 hover:text-neutral-400")}
@@ -1215,6 +1279,20 @@ export default function App() {
                           <Monitor className="w-4 h-4" />
                         </button>
                       </div>
+                    )}
+
+                    {activeTab === 'preview' && !isGameMode && !is3DMode && isMobile && (
+                      <button 
+                        onClick={() => {
+                          const devices: Array<'mobile' | 'tablet' | 'desktop'> = ['mobile', 'tablet', 'desktop'];
+                          const nextIdx = (devices.indexOf(previewDevice) + 1) % devices.length;
+                          setPreviewDevice(devices[nextIdx]);
+                        }}
+                        className="p-2.5 bg-neutral-900/80 border border-white/5 text-emerald-500 rounded-xl flex items-center gap-2 text-[10px] font-black uppercase tracking-widest sm:hidden"
+                      >
+                        {previewDevice === 'mobile' ? <Smartphone className="w-4 h-4" /> : previewDevice === 'tablet' ? <Tablet className="w-4 h-4" /> : <Monitor className="w-4 h-4" />}
+                        {previewDevice}
+                      </button>
                     )}
                     {isCloneMode && sourceUrl && (
                       <div className="flex bg-neutral-900/50 p-1 rounded-2xl border border-white/5 shrink-0">
@@ -1501,34 +1579,34 @@ export default function App() {
                         )}
                       </motion.div>
                       <div className={cn(
-                        "flex-1 space-y-4 min-w-0",
+                        "flex-1 space-y-3 min-w-0",
                         msg.role === 'user' ? "text-right" : ""
                       )}>
                         <div className={cn(
-                          "prose prose-invert max-w-none text-base leading-relaxed",
+                          "prose prose-invert max-w-none text-[15px] leading-relaxed",
                           msg.role === 'user' 
-                            ? "glass-card p-6 rounded-3xl inline-block text-left border border-white/5 shadow-2xl preserve-3d" 
-                            : "p-2"
+                            ? "glass-card p-4 md:p-6 rounded-2xl md:rounded-3xl inline-block text-left border border-white/5 shadow-2xl preserve-3d" 
+                            : "p-0 md:p-2"
                         )}>
                           <Markdown
                             components={{
                               img: ({ src, alt }) => (
                                 <motion.div 
                                   whileHover={{ scale: 1.05, rotateY: 5, translateZ: 20 }}
-                                  className="relative group mt-8 preserve-3d"
+                                  className="relative group mt-6 md:mt-8 preserve-3d"
                                 >
                                   <img 
                                     src={src} 
                                     alt={alt} 
-                                    className="rounded-[2.5rem] border border-white/10 shadow-[0_40px_80px_rgba(0,0,0,0.6)] max-w-full h-auto" 
+                                    className="rounded-3xl border border-white/10 shadow-[0_30px_60px_rgba(0,0,0,0.5)] max-w-full h-auto" 
                                     referrerPolicy="no-referrer"
                                   />
                                   <a 
                                     href={src} 
                                     download="teta-generated.png"
-                                    className="absolute top-8 right-8 p-4 bg-black/60 backdrop-blur-2xl rounded-2xl opacity-0 group-hover:opacity-100 transition-all hover:bg-emerald-500 hover:text-black shadow-2xl"
+                                    className="absolute top-6 right-6 p-3 bg-black/60 backdrop-blur-2xl rounded-xl opacity-0 group-hover:opacity-100 transition-all hover:bg-emerald-500 hover:text-black shadow-2xl"
                                   >
-                                    <Download className="w-6 h-6" />
+                                    <Download className="w-5 h-5" />
                                   </a>
                                 </motion.div>
                               )
@@ -1542,9 +1620,9 @@ export default function App() {
                             whileHover={{ scale: 1.1, x: 5 }}
                             whileTap={{ scale: 0.9 }}
                             onClick={() => speak(msg.content)}
-                            className="p-2.5 text-neutral-500 hover:text-emerald-500 transition-all bg-white/5 rounded-xl border border-transparent hover:border-white/5 shadow-lg"
+                            className="p-2 text-neutral-500 hover:text-emerald-500 transition-all bg-white/5 rounded-lg border border-transparent hover:border-white/5 shadow-lg"
                           >
-                            <Volume2 className="w-4 h-4" />
+                            <Volume2 className="w-3.5 h-3.5" />
                           </motion.button>
                         )}
                       </div>
@@ -1566,40 +1644,41 @@ export default function App() {
         </div>
 
         {/* Input Area */}
-        <div className="p-4 md:p-10 bg-gradient-to-t from-[#0A0A0A] via-[#0A0A0A] to-transparent perspective-1000">
-          <div className="max-w-4xl mx-auto relative">
+        <div className="p-3 md:p-10 bg-gradient-to-t from-[#0A0A0A] via-[#0A0A0A] to-transparent perspective-1000">
+          <div className="max-w-4xl mx-auto relative flex flex-col gap-3">
             {selectedImage && (
               <motion.div 
                 initial={{ opacity: 0, scale: 0.9, y: 10 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                className="mb-3 md:mb-4 relative inline-block group"
+                className="relative inline-block group self-start"
               >
                 <img 
                   src={selectedImage} 
                   alt="Selected reference" 
-                  className="w-20 h-20 md:w-24 md:h-24 object-cover rounded-2xl border-2 border-emerald-500/50 shadow-2xl"
+                  className="w-16 h-16 md:w-24 md:h-24 object-cover rounded-2xl border-2 border-emerald-500/50 shadow-2xl"
                 />
                 <button 
                   onClick={() => setSelectedImage(null)}
-                  className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                  className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full shadow-lg"
                 >
                   <X className="w-3 h-3" />
                 </button>
               </motion.div>
             )}
+            
             {is3DMode && (
               <motion.div 
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="mb-3 md:mb-4 flex flex-wrap items-center gap-2 md:gap-3 p-2 md:p-3 bg-white/5 backdrop-blur-xl rounded-2xl border border-white/5 shadow-2xl"
+                className="flex items-center gap-2 p-2 bg-white/5 backdrop-blur-xl rounded-2xl border border-white/5 shadow-2xl overflow-x-auto no-scrollbar scroll-smooth"
               >
-                <div className="flex items-center gap-1 md:gap-2 px-2 md:px-3 py-1 md:py-1.5 bg-neutral-900/50 rounded-xl border border-white/5">
-                  <span className="text-[9px] md:text-[10px] font-black uppercase text-neutral-500 tracking-widest">Target:</span>
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-neutral-900/50 rounded-xl border border-white/5 shrink-0">
+                  <span className="text-[10px] font-black uppercase text-neutral-500 tracking-widest hidden xs:inline">Mode:</span>
                   <button 
                     onClick={() => setThreeDTarget('standalone')}
                     className={cn(
-                      "px-2 md:px-3 py-1 rounded-lg text-[9px] md:text-[10px] font-bold transition-all",
-                      threeDTarget === 'standalone' ? "bg-emerald-500 text-black" : "text-neutral-500 hover:text-neutral-300"
+                      "px-3 py-1 rounded-lg text-[10px] font-bold transition-all",
+                      threeDTarget === 'standalone' ? "bg-emerald-500 text-black shadow-[0_0_15px_rgba(16,185,129,0.3)]" : "text-neutral-500 hover:text-neutral-300"
                     )}
                   >
                     Standalone
@@ -1607,26 +1686,27 @@ export default function App() {
                   <button 
                     onClick={() => setThreeDTarget('game')}
                     className={cn(
-                      "px-2 md:px-3 py-1 rounded-lg text-[9px] md:text-[10px] font-bold transition-all",
-                      threeDTarget === 'game' ? "bg-emerald-500 text-black" : "text-neutral-500 hover:text-neutral-300"
+                      "px-3 py-1 rounded-lg text-[10px] font-bold transition-all",
+                      threeDTarget === 'game' ? "bg-emerald-500 text-black shadow-[0_0_15px_rgba(16,185,129,0.3)]" : "text-neutral-500 hover:text-neutral-300"
                     )}
                   >
-                    Game
+                    Asset
                   </button>
                 </div>
-                <div className="flex items-center gap-1 md:gap-2 px-2 md:px-3 py-1 md:py-1.5 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
-                  <Download className="w-3 h-3 text-emerald-500" />
-                  <span className="text-[9px] md:text-[10px] font-bold uppercase text-emerald-500 tracking-widest">Download Ready</span>
+                <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 rounded-xl border border-emerald-500/20 shrink-0">
+                  <Download className="w-3.5 h-3.5 text-emerald-500" />
+                  <span className="text-[10px] font-black uppercase text-emerald-500 tracking-widest">Available</span>
                 </div>
               </motion.div>
             )}
+
             <motion.form 
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               onSubmit={sendMessage}
               className="relative group preserve-3d"
             >
-              <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-[2rem] blur opacity-10 group-focus-within:opacity-20 transition duration-1000 group-hover:duration-200" />
+              <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-[2rem] blur opacity-10 group-focus-within:opacity-20 transition duration-1000" />
               <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
@@ -1636,56 +1716,47 @@ export default function App() {
                     sendMessage();
                   }
                 }}
-                placeholder={is3DMode ? "Describe your 3D scene or upload a reference..." : isCloneMode ? "Drop a website link to clone it..." : "Ask TETA anything..."}
+                placeholder={is3DMode ? "Describe 3D scene..." : isCloneMode ? "URL to clone..." : "Ask TETA anything..."}
                 rows={1}
-                className="w-full bg-neutral-900/60 backdrop-blur-2xl border border-white/5 rounded-[2rem] py-5 pl-14 md:pl-16 pr-24 md:pr-28 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/50 transition-all resize-none text-base min-h-[64px] max-h-48 shadow-2xl text-white placeholder-neutral-600"
+                className="w-full bg-neutral-900/80 backdrop-blur-3xl border border-white/5 rounded-[2rem] py-5 pl-14 md:pl-16 pr-24 md:pr-28 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all resize-none text-base min-h-[64px] max-h-48 shadow-2xl text-white"
               />
-              <div className="absolute left-3 md:left-4 bottom-3 md:bottom-4">
+              <div className="absolute left-3 md:left-4 bottom-[15px] md:bottom-4">
                 <label className="cursor-pointer group/upload">
-                  <input 
-                    type="file" 
-                    accept="image/*" 
-                    className="hidden" 
-                    onChange={handleImageUpload}
-                  />
-                  <div className="p-2 rounded-xl bg-white/5 text-neutral-500 group-hover/upload:bg-white/10 group-hover/upload:text-emerald-500 transition-all">
+                  <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                  <div className="p-2.5 rounded-xl bg-white/5 text-neutral-500 group-hover/upload:text-emerald-500 transition-all">
                     <Paperclip className="w-4 h-4 md:w-5 md:h-5" />
                   </div>
                 </label>
               </div>
               <div className="absolute right-2 md:right-3 bottom-2 md:bottom-3 flex items-center gap-1.5 md:gap-2">
                 <motion.button
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   type="button"
                   onClick={toggleRecording}
                   className={cn(
                     "p-2.5 md:p-3 rounded-2xl transition-all border shadow-lg",
-                    isRecording 
-                      ? "bg-red-500 text-white border-red-600 animate-pulse" 
-                      : "bg-white/5 text-neutral-400 border-white/5 hover:text-white hover:bg-white/10"
+                    isRecording ? "bg-red-500 text-white border-red-600 shadow-[0_0_20px_rgba(239,68,68,0.4)]" : "bg-white/5 text-neutral-400 border-white/5 hover:text-white"
                   )}
                 >
                   {isRecording ? <MicOff className="w-4 h-4 md:w-5 md:h-5" /> : <Mic className="w-4 h-4 md:w-5 md:h-5" />}
                 </motion.button>
                 <motion.button
-                  whileHover={{ scale: 1.1, x: 2 }}
-                  whileTap={{ scale: 0.9 }}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   type="submit"
                   disabled={!input.trim() || isLoading}
                   className={cn(
                     "p-2.5 md:p-3 rounded-2xl transition-all shadow-lg border",
-                    input.trim() && !isLoading 
-                      ? "bg-emerald-500 text-black border-emerald-600 shadow-[0_0_20px_rgba(16,185,129,0.3)]" 
-                      : "bg-neutral-800 text-neutral-600 border-neutral-700 cursor-not-allowed"
+                    input.trim() && !isLoading ? "bg-emerald-500 text-black border-emerald-600 shadow-[0_0_20px_rgba(16,185,129,0.3)]" : "bg-neutral-800 text-neutral-600 border-neutral-700"
                   )}
                 >
                   <Send className="w-4 h-4 md:w-5 md:h-5" />
                 </motion.button>
               </div>
             </motion.form>
-            <p className="text-[10px] text-center mt-4 text-neutral-600 font-black uppercase tracking-[0.2em] opacity-50">
-              Powered by TETA Proprietary Intelligence
+            <p className="text-[10px] text-center mt-1 text-neutral-700 font-black uppercase tracking-[0.3em] opacity-40">
+              TETA Intelligence Ready
             </p>
           </div>
         </div>

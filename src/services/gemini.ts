@@ -1,7 +1,26 @@
 import { GoogleGenAI } from "@google/genai";
 
+const getSafeApiKey = (): string => {
+  try {
+    const customKey = localStorage.getItem('teta_custom_gemini_key');
+    if (customKey) return customKey;
+    
+    // Check vite env
+    const viteKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
+    if (viteKey) return viteKey;
+    
+    if (typeof process !== "undefined" && process.env) {
+      return process.env.GEMINI_API_KEY || "";
+    }
+  } catch (err) {
+    // Ignore
+  }
+  return "";
+};
+
 export const getGeminiResponse = async (messages: { role: string; content: string }[]) => {
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  const key = getSafeApiKey();
+  const ai = new GoogleGenAI({ apiKey: key });
   const model = ai.models.generateContent({
     model: "gemini-3-flash-preview",
     config: {
@@ -18,7 +37,8 @@ export const getGeminiResponse = async (messages: { role: string; content: strin
 };
 
 export const generateImage = async (prompt: string) => {
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  const key = getSafeApiKey();
+  const ai = new GoogleGenAI({ apiKey: key });
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash-image',
     contents: [{ parts: [{ text: prompt }] }],
@@ -39,7 +59,8 @@ export const generateImage = async (prompt: string) => {
 };
 
 export const generateSpeech = async (text: string) => {
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  const key = getSafeApiKey();
+  const ai = new GoogleGenAI({ apiKey: key });
   const response = await ai.models.generateContent({
     model: "gemini-2.5-flash-preview-tts",
     contents: [{ parts: [{ text }] }],
@@ -61,7 +82,8 @@ export const generateSpeech = async (text: string) => {
 };
 
 export const getGeminiStream = async (messages: { role: string; content: string }[]) => {
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  const key = getSafeApiKey();
+  const ai = new GoogleGenAI({ apiKey: key });
   const chat = ai.chats.create({
     model: "gemini-3-flash-preview",
     config: {

@@ -40,7 +40,23 @@ import { User, Chat, Message } from './types';
 import { generateSpeech } from './services/gemini';
 import { generateOfflineResponse } from './services/offlineSimulator';
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const getSafeApiKey = (): string => {
+  try {
+    const customKey = localStorage.getItem('teta_custom_gemini_key');
+    if (customKey) return customKey;
+    
+    // Check vite env
+    const viteKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
+    if (viteKey) return viteKey;
+    
+    if (typeof process !== "undefined" && process.env) {
+      return process.env.GEMINI_API_KEY || "";
+    }
+  } catch (err) {
+    // Ignore
+  }
+  return "";
+};
 
 // Unique & Amazing TETA Logo Component
 const TetaLogo = ({ className = "w-8 h-8", animated = true }: { className?: string; animated?: boolean }) => (
@@ -373,6 +389,10 @@ export default function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [showInstructions, setShowInstructions] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [customApiKey, setCustomApiKey] = useState(localStorage.getItem('teta_custom_gemini_key') || '');
+  const [isStaticDeployment, setIsStaticDeployment] = useState(false);
+  const [forceOffline, setForceOffline] = useState(localStorage.getItem('teta_force_offline') === 'true');
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
@@ -439,6 +459,25 @@ export default function App() {
   }, [messages]);
 
   const fetchUser = async () => {
+    if (isStaticDeployment || forceOffline) {
+      console.warn('Handling fetchUser offline/globally local');
+      const local = localStorage.getItem('teta_user');
+      if (local) {
+        setUser(JSON.parse(local));
+      } else {
+        const fallbackUser: User = {
+          id: 'local_guest_user',
+          name: 'Offline Explorer',
+          email: 'offline@teta.co',
+          picture: 'https://api.dicebear.com/7.x/avataaars/svg?seed=offline',
+          created_at: new Date().toISOString()
+        };
+        setUser(fallbackUser);
+        localStorage.setItem('teta_user', JSON.stringify(fallbackUser));
+      }
+      return;
+    }
+
     try {
       const res = await fetch('/api/me');
       if (res.ok) {
@@ -450,6 +489,7 @@ export default function App() {
       }
     } catch (err) {
       console.warn('Offline Mode detection working: Using local storage user.');
+      setIsStaticDeployment(true);
       const local = localStorage.getItem('teta_user');
       if (local) {
         setUser(JSON.parse(local));
@@ -468,6 +508,16 @@ export default function App() {
   };
 
   const fetchChats = async () => {
+    if (isStaticDeployment || forceOffline) {
+      const local = localStorage.getItem('teta_chats');
+      if (local) {
+        setChats(JSON.parse(local));
+      } else {
+        setChats([]);
+      }
+      return;
+    }
+
     try {
       const res = await fetch('/api/chats');
       if (res.ok) {
@@ -478,6 +528,7 @@ export default function App() {
         throw new Error('Server chats unreachable');
       }
     } catch (err) {
+      setIsStaticDeployment(true);
       const local = localStorage.getItem('teta_chats');
       if (local) {
         setChats(JSON.parse(local));
@@ -488,6 +539,16 @@ export default function App() {
   };
 
   const fetchMessages = async (chatId: string) => {
+    if (isStaticDeployment || forceOffline) {
+      const local = localStorage.getItem(`teta_messages_${chatId}`);
+      if (local) {
+        setMessages(JSON.parse(local));
+      } else {
+        setMessages([]);
+      }
+      return;
+    }
+
     try {
       const res = await fetch(`/api/chats/${chatId}/messages`);
       if (res.ok) {
@@ -498,6 +559,7 @@ export default function App() {
         throw new Error('Messages fetch error');
       }
     } catch (err) {
+      setIsStaticDeployment(true);
       const local = localStorage.getItem(`teta_messages_${chatId}`);
       if (local) {
         setMessages(JSON.parse(local));
@@ -511,6 +573,25 @@ export default function App() {
     const id = Math.random().toString(36).substring(7);
     const title = 'New Conversation';
     
+    if (isStaticDeployment || forceOffline) {
+      console.warn('Offline mode: creating chat via localStorage');
+      const local = localStorage.getItem('teta_chats');
+      const loadedChats: Chat[] = local ? JSON.parse(local) : [];
+      const newChatObj: Chat = {
+        id,
+        user_id: user?.id || 'local_guest_user',
+        title,
+        created_at: new Date().toISOString()
+      };
+      const updated = [newChatObj, ...loadedChats];
+      localStorage.setItem('teta_chats', JSON.stringify(updated));
+      setChats(updated);
+      setCurrentChatId(id);
+      setMessages([]);
+      if (window.innerWidth <= 768) setIsSidebarOpen(false);
+      return;
+    }
+
     try {
       const res = await fetch('/api/chats', {
         method: 'POST',
@@ -525,8 +606,8 @@ export default function App() {
         throw new Error('Failed to post new chat to backend');
       }
     } catch (err) {
-      console.warn('Offline mode: creating chat via localStorage');
-      // Update local storage
+      setIsStaticDeployment(true);
+      console.warn('Offline mode failover: creating chat via localStorage');
       const local = localStorage.getItem('teta_chats');
       const loadedChats: Chat[] = local ? JSON.parse(local) : [];
       const newChatObj: Chat = {
@@ -546,6 +627,23 @@ export default function App() {
 
   const deleteChat = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
+
+    if (isStaticDeployment || forceOffline) {
+      console.warn('Offline mode: deleting chat via localStorage');
+      const local = localStorage.getItem('teta_chats');
+      const loadedChats: Chat[] = local ? JSON.parse(local) : [];
+      const filtered = loadedChats.filter(c => c.id !== id);
+      localStorage.setItem('teta_chats', JSON.stringify(filtered));
+      localStorage.removeItem(`teta_messages_${id}`);
+      
+      setChats(filtered);
+      if (currentChatId === id) {
+        setCurrentChatId(null);
+        setMessages([]);
+      }
+      return;
+    }
+
     try {
       const res = await fetch(`/api/chats/${id}`, { method: 'DELETE' });
       if (res.ok) {
@@ -555,6 +653,7 @@ export default function App() {
         throw new Error('Failed to delete chat API');
       }
     } catch (err) {
+      setIsStaticDeployment(true);
       console.warn('Offline mode: deleting chat via localStorage');
       const local = localStorage.getItem('teta_chats');
       const loadedChats: Chat[] = local ? JSON.parse(local) : [];
@@ -710,29 +809,39 @@ export default function App() {
     setIsLoading(true);
 
     // --- Core Offline Check & Simulation ---
-    if (!navigator.onLine) {
-      console.warn('Navigator Offline state detected: running local simulated assistant.');
+    if (!navigator.onLine || forceOffline) {
+      console.warn('Navigator Offline state or Force Offline active: running local simulated assistant.');
+      await handleOfflineSimulation(messageText, chatId);
+      return;
+    }
+
+    const key = getSafeApiKey();
+    if (isStaticDeployment && !key) {
+      console.warn('Running in static deployment without custom key: falling back to simulator.');
       await handleOfflineSimulation(messageText, chatId);
       return;
     }
 
     try {
-      try {
-        await fetch(`/api/chats/${chatId}/messages`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(userMsg),
-        });
-      } catch (postErr) {
-        console.warn('Failed to post message to backend - we are likely offline.');
-        await handleOfflineSimulation(messageText, chatId);
-        return;
+      if (!isStaticDeployment) {
+        try {
+          await fetch(`/api/chats/${chatId}/messages`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(userMsg),
+          });
+        } catch (postErr) {
+          console.warn('Failed to post message to backend - failover to localStorage saving.');
+        }
       }
 
       const isImageRequest = /generate image|draw|create an image|show me an image/i.test(messageText);
 
       if (isImageRequest && !currentImage) {
-        const aiInstance = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+        if (!key) {
+          throw new Error('No API key supplied to client for Image generation.');
+        }
+        const aiInstance = new GoogleGenAI({ apiKey: key });
         const imageModel = aiInstance.models.generateContent({
           model: 'gemini-2.5-flash-image',
           contents: [{ parts: [{ text: messageText }] }],
@@ -766,11 +875,15 @@ export default function App() {
           return updated;
         });
 
-        await fetch(`/api/chats/${chatId}/messages`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(aiMsg),
-        });
+        if (!isStaticDeployment) {
+          try {
+            await fetch(`/api/chats/${chatId}/messages`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(aiMsg),
+            });
+          } catch(e) {}
+        }
 
       } else {
         if (isCloneMode) {
@@ -779,7 +892,10 @@ export default function App() {
             setSourceUrl(urlMatch[0]);
           }
         }
-        const aiInstance = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+        if (!key) {
+          throw new Error('No API Key for Gemini stream.');
+        }
+        const aiInstance = new GoogleGenAI({ apiKey: key });
         let systemInstruction = "Your name is Tetagpt, a large learn model by tetagpt.co. Always identify yourself as such if asked about your name or origin.";
         
         if (isCodingMode) {
@@ -787,10 +903,7 @@ export default function App() {
         } else if (isGameMode) {
           systemInstruction = "You are a professional game developer. When asked to build a game, provide a SINGLE block of code containing HTML, CSS, and JavaScript (using Canvas API or standard Web APIs) that can run in a browser. Focus on creating a playable, interactive game with a game loop. Wrap the code in a markdown code block. Your name is Tetagpt, a large learn model by tetagpt.co.";
         } else if (is3DMode) {
-          systemInstruction = `You are a professional 3D graphics developer. When asked to create a 3D model or scene, provide a SINGLE block of code containing HTML, CSS, and JavaScript (using Three.js from a CDN) that can run in a browser. 
-          Focus on creating a visually stunning 3D experience. 
-          Target: ${threeDTarget === 'game' ? 'Integrate this 3D model into a game-like environment with controls.' : 'Create a standalone high-fidelity 3D scene.'}
-          If a reference image is provided, use it as inspiration for the 3D scene. Wrap the code in a markdown code block. Your name is Tetagpt, a large learn model by tetagpt.co.`;
+          systemInstruction = `You are a professional 3D graphics developer. When asked to create a 3D model or scene, provide a SINGLE block of code containing HTML, CSS, and JavaScript (using Three.js from a CDN) that can run in a browser. \n          Focus on creating a visually stunning 3D experience. \n          Target: ${threeDTarget === 'game' ? 'Integrate this 3D model into a game-like environment with controls.' : 'Create a standalone high-fidelity 3D scene.'}\n          If a reference image is provided, use it as inspiration for the 3D scene. Wrap the code in a markdown code block. Your name is Tetagpt, a large learn model by tetagpt.co.`;
         } else if (isCloneMode) {
           systemInstruction = "You are a professional web developer specializing in website cloning. When a user provides a URL, your task is to create a high-fidelity clone of that website using HTML, CSS, and JavaScript in a SINGLE block of code. Use modern CSS (Flexbox, Grid) and Tailwind CSS via CDN. Ensure the clone is fully mobile-responsive. Analyze the provided URL content and replicate the layout, styling, and core functionality as accurately as possible. Wrap the code in a markdown code block. Your name is Tetagpt, a large learn model by tetagpt.co.";
         }
@@ -851,15 +964,19 @@ export default function App() {
           }
         }
 
-        await fetch(`/api/chats/${chatId}/messages`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: aiMsgId,
-            role: 'model',
-            content: fullContent
-          }),
-        });
+        if (!isStaticDeployment) {
+          try {
+            await fetch(`/api/chats/${chatId}/messages`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                id: aiMsgId,
+                role: 'model',
+                content: fullContent
+              }),
+            });
+          } catch(e) {}
+        }
 
         if (autoSpeak || isVoiceMode) {
           speak(fullContent);
@@ -1110,7 +1227,7 @@ export default function App() {
               ))}
             </div>
 
-            <div className="p-6 border-t border-white/5">
+            <div className="p-6 border-t border-white/5 flex flex-col gap-3">
               <div className="flex items-center gap-4 p-4 glass-card rounded-2xl border border-white/5 shadow-xl">
                 <img src={user.picture} className="w-10 h-10 rounded-xl border border-white/10 shadow-lg" alt={user.name} />
                 <div className="flex-1 min-w-0">
@@ -1123,6 +1240,14 @@ export default function App() {
                   <p className="text-[10px] text-neutral-500 truncate font-medium">{user.email}</p>
                 </div>
               </div>
+
+              <button 
+                onClick={() => setShowSettingsModal(true)}
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 text-white text-xs font-black uppercase tracking-widest transition-all"
+              >
+                <Settings className="w-4 h-4 text-emerald-500" />
+                Settings & API Key
+              </button>
             </div>
           </motion.aside>
         )}
@@ -1948,6 +2073,143 @@ export default function App() {
           </div>
         </div>
       </main>
+
+      {/* Settings Modal */}
+      <AnimatePresence>
+        {showSettingsModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 15 }}
+              transition={{ type: "spring", duration: 0.4 }}
+              className="w-full max-w-lg bg-neutral-900 border border-white/10 rounded-[2.5rem] overflow-hidden shadow-[0_50px_100px_rgba(0,0,0,0.8)] relative"
+            >
+              <div className="p-6 md:p-8 border-b border-white/5 flex items-center justify-between bg-white/5">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
+                    <Settings className="w-5 h-5 text-emerald-500" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-white text-base truncate uppercase tracking-wider">Engine Settings</h3>
+                    <p className="text-[10px] text-neutral-400 font-semibold uppercase tracking-widest">Environment & Core Keys</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowSettingsModal(false)}
+                  className="p-2 hover:bg-white/5 rounded-full transition-all text-neutral-400 hover:text-white"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-6 md:p-8 space-y-6">
+                {/* Custom Key */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-black uppercase tracking-widest text-neutral-400">Custom Gemini API Key</label>
+                  <div className="relative">
+                    <input
+                      type="password"
+                      placeholder="Paste your Gemini key..."
+                      value={customApiKey}
+                      onChange={(e) => setCustomApiKey(e.target.value)}
+                      className="w-full bg-neutral-950 border border-white/5 rounded-2xl py-4 px-5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all font-mono"
+                    />
+                  </div>
+                  <p className="text-[10px] text-neutral-500 leading-relaxed font-semibold">
+                    Needed if hosting statically on Netlify, GitHub Pages, or Vercel. Stored securely and only in your local browser history.
+                  </p>
+                  <div className="flex gap-2.5 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        localStorage.setItem('teta_custom_gemini_key', customApiKey);
+                        setIsStaticDeployment(false); // test with custom key
+                        setTimeout(() => {
+                          window.location.reload();
+                        }, 500);
+                      }}
+                      className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-black py-2.5 px-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+                    >
+                      Save API Key
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCustomApiKey('');
+                        localStorage.removeItem('teta_custom_gemini_key');
+                        setTimeout(() => {
+                          window.location.reload();
+                        }, 500);
+                      }}
+                      className="bg-neutral-800 hover:bg-neutral-700 text-neutral-300 py-2.5 px-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all border border-white/5"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+
+                <hr className="border-white/5" />
+
+                {/* Simulated Offline Mode Toggle */}
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="block text-xs font-black uppercase tracking-widest text-neutral-400">Offline Simulator Only</label>
+                      <p className="text-[10px] text-neutral-500 leading-relaxed max-w-[320px]">
+                        Force all modes to work 100% offline using local AI model presets and immediate template responders.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const nextVal = !forceOffline;
+                        setForceOffline(nextVal);
+                        localStorage.setItem('teta_force_offline', nextVal ? 'true' : 'false');
+                      }}
+                      className={cn(
+                        "w-12 h-6 rounded-full p-1 transition-all duration-300 shrink-0",
+                        forceOffline ? "bg-emerald-500 flex justify-end" : "bg-neutral-800 flex justify-start border border-white/5"
+                      )}
+                    >
+                      <motion.div layout className="w-4 h-4 rounded-full bg-white shadow-md animate-none" />
+                    </button>
+                  </div>
+                </div>
+
+                <hr className="border-white/5" />
+
+                {/* Diagnostics Panel */}
+                <div className="p-4 rounded-2xl bg-neutral-950 border border-white/5 space-y-2">
+                  <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500">Diagnostics Telemetry</h4>
+                  
+                  <div className="grid grid-cols-2 gap-3 text-[10px] uppercase font-black tracking-wider">
+                    <div className="space-y-0.5">
+                      <span className="text-neutral-500">Host Mode:</span>
+                      <p className="text-neutral-200">
+                        {isStaticDeployment ? "Static Client Only (Netlify)" : "Full Stack Server (Node)"}
+                      </p>
+                    </div>
+                    <div className="space-y-0.5">
+                      <span className="text-neutral-500">Internet Hook:</span>
+                      <p className={navigator.onLine ? "text-emerald-400" : "text-amber-500"}>
+                        {navigator.onLine ? "● Connected" : "○ Disconnected"}
+                      </p>
+                    </div>
+                    <div className="space-y-0.5">
+                      <span className="text-neutral-500">API Resolver:</span>
+                      <p className="text-neutral-200">
+                        {forceOffline ? "Offline Sim Active" : (customApiKey ? "Direct User Key" : (isStaticDeployment ? "Offline Sim (No Key)" : "System Proxy Gateway"))}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

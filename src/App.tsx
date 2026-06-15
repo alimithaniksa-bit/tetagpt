@@ -38,6 +38,7 @@ import { atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { cn } from './lib/utils';
 import { User, Chat, Message } from './types';
 import { generateSpeech } from './services/gemini';
+import { generateOfflineResponse } from './services/offlineSimulator';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
@@ -443,49 +444,129 @@ export default function App() {
       if (res.ok) {
         const data = await res.json();
         setUser(data);
+        localStorage.setItem('teta_user', JSON.stringify(data));
+      } else {
+        throw new Error('Server returned un-ok response');
       }
     } catch (err) {
-      console.error('Failed to fetch user');
+      console.warn('Offline Mode detection working: Using local storage user.');
+      const local = localStorage.getItem('teta_user');
+      if (local) {
+        setUser(JSON.parse(local));
+      } else {
+        const fallbackUser: User = {
+          id: 'local_guest_user',
+          name: 'Offline Explorer',
+          email: 'offline@teta.co',
+          picture: 'https://api.dicebear.com/7.x/avataaars/svg?seed=offline',
+          created_at: new Date().toISOString()
+        };
+        setUser(fallbackUser);
+        localStorage.setItem('teta_user', JSON.stringify(fallbackUser));
+      }
     }
   };
 
   const fetchChats = async () => {
-    const res = await fetch('/api/chats');
-    if (res.ok) {
-      const data = await res.json();
-      setChats(data);
+    try {
+      const res = await fetch('/api/chats');
+      if (res.ok) {
+        const data = await res.json();
+        setChats(data);
+        localStorage.setItem('teta_chats', JSON.stringify(data));
+      } else {
+        throw new Error('Server chats unreachable');
+      }
+    } catch (err) {
+      const local = localStorage.getItem('teta_chats');
+      if (local) {
+        setChats(JSON.parse(local));
+      } else {
+        setChats([]);
+      }
     }
   };
 
   const fetchMessages = async (chatId: string) => {
-    const res = await fetch(`/api/chats/${chatId}/messages`);
-    if (res.ok) {
-      const data = await res.json();
-      setMessages(data);
+    try {
+      const res = await fetch(`/api/chats/${chatId}/messages`);
+      if (res.ok) {
+        const data = await res.json();
+        setMessages(data);
+        localStorage.setItem(`teta_messages_${chatId}`, JSON.stringify(data));
+      } else {
+        throw new Error('Messages fetch error');
+      }
+    } catch (err) {
+      const local = localStorage.getItem(`teta_messages_${chatId}`);
+      if (local) {
+        setMessages(JSON.parse(local));
+      } else {
+        setMessages([]);
+      }
     }
   };
 
   const createNewChat = async () => {
     const id = Math.random().toString(36).substring(7);
     const title = 'New Conversation';
-    const res = await fetch('/api/chats', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, title }),
-    });
-    if (res.ok) {
-      await fetchChats();
+    
+    try {
+      const res = await fetch('/api/chats', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, title }),
+      });
+      if (res.ok) {
+        await fetchChats();
+        setCurrentChatId(id);
+        if (window.innerWidth <= 768) setIsSidebarOpen(false);
+      } else {
+        throw new Error('Failed to post new chat to backend');
+      }
+    } catch (err) {
+      console.warn('Offline mode: creating chat via localStorage');
+      // Update local storage
+      const local = localStorage.getItem('teta_chats');
+      const loadedChats: Chat[] = local ? JSON.parse(local) : [];
+      const newChatObj: Chat = {
+        id,
+        user_id: user?.id || 'local_guest_user',
+        title,
+        created_at: new Date().toISOString()
+      };
+      const updated = [newChatObj, ...loadedChats];
+      localStorage.setItem('teta_chats', JSON.stringify(updated));
+      setChats(updated);
       setCurrentChatId(id);
+      setMessages([]);
       if (window.innerWidth <= 768) setIsSidebarOpen(false);
     }
   };
 
   const deleteChat = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    const res = await fetch(`/api/chats/${id}`, { method: 'DELETE' });
-    if (res.ok) {
-      if (currentChatId === id) setCurrentChatId(null);
-      fetchChats();
+    try {
+      const res = await fetch(`/api/chats/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        if (currentChatId === id) setCurrentChatId(null);
+        await fetchChats();
+      } else {
+        throw new Error('Failed to delete chat API');
+      }
+    } catch (err) {
+      console.warn('Offline mode: deleting chat via localStorage');
+      const local = localStorage.getItem('teta_chats');
+      const loadedChats: Chat[] = local ? JSON.parse(local) : [];
+      const filtered = loadedChats.filter(c => c.id !== id);
+      localStorage.setItem('teta_chats', JSON.stringify(filtered));
+      localStorage.removeItem(`teta_messages_${id}`);
+      
+      setChats(filtered);
+      if (currentChatId === id) {
+        setCurrentChatId(null);
+        setMessages([]);
+      }
     }
   };
 
@@ -539,12 +620,31 @@ export default function App() {
     if (!chatId) {
       const newId = Math.random().toString(36).substring(7);
       const title = messageText.slice(0, 30) + (messageText.length > 30 ? '...' : '');
-      await fetch('/api/chats', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: newId, title: title || 'New 3D/Code Project' }),
-      });
-      await fetchChats();
+      try {
+        const res = await fetch('/api/chats', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: newId, title: title || 'New 3D/Code Project' }),
+        });
+        if (res.ok) {
+          await fetchChats();
+        } else {
+          throw new Error('Failed to create chat in REST endpoint');
+        }
+      } catch (err) {
+        console.warn('Offline mode: creating chat metadata offline');
+        const local = localStorage.getItem('teta_chats');
+        const loadedChats = local ? JSON.parse(local) : [];
+        const newChatObj: Chat = {
+          id: newId,
+          user_id: user?.id || 'local_guest_user',
+          title: title || 'New 3D/Code Project',
+          created_at: new Date().toISOString()
+        };
+        loadedChats.unshift(newChatObj);
+        localStorage.setItem('teta_chats', JSON.stringify(loadedChats));
+        setChats(loadedChats);
+      }
       chatId = newId;
       setCurrentChatId(newId);
     }
@@ -558,7 +658,11 @@ export default function App() {
       created_at: new Date().toISOString()
     };
 
-    setMessages(prev => [...prev, userMsg]);
+    setMessages(prev => {
+      const updated = [...prev, userMsg];
+      localStorage.setItem(`teta_messages_${chatId}`, JSON.stringify(updated));
+      return updated;
+    });
     setInput('');
 
     if (messageText.toLowerCase().includes('coding mode on')) {
@@ -605,12 +709,25 @@ export default function App() {
 
     setIsLoading(true);
 
+    // --- Core Offline Check & Simulation ---
+    if (!navigator.onLine) {
+      console.warn('Navigator Offline state detected: running local simulated assistant.');
+      await handleOfflineSimulation(messageText, chatId);
+      return;
+    }
+
     try {
-      await fetch(`/api/chats/${chatId}/messages`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(userMsg),
-      });
+      try {
+        await fetch(`/api/chats/${chatId}/messages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(userMsg),
+        });
+      } catch (postErr) {
+        console.warn('Failed to post message to backend - we are likely offline.');
+        await handleOfflineSimulation(messageText, chatId);
+        return;
+      }
 
       const isImageRequest = /generate image|draw|create an image|show me an image/i.test(messageText);
 
@@ -643,7 +760,11 @@ export default function App() {
           created_at: new Date().toISOString()
         };
 
-        setMessages(prev => [...prev, aiMsg]);
+        setMessages(prev => {
+          const updated = [...prev, aiMsg];
+          localStorage.setItem(`teta_messages_${chatId}`, JSON.stringify(updated));
+          return updated;
+        });
 
         await fetch(`/api/chats/${chatId}/messages`, {
           method: 'POST',
@@ -701,21 +822,28 @@ export default function App() {
         const aiMsgId = Math.random().toString(36).substring(7);
         let fullContent = '';
         
-        setMessages(prev => [...prev, {
-          id: aiMsgId,
-          chat_id: chatId!,
-          role: 'model',
-          content: '',
-          created_at: new Date().toISOString()
-        }]);
+        setMessages(prev => {
+          const updated: Message[] = [...prev, {
+            id: aiMsgId,
+            chat_id: chatId!,
+            role: 'model',
+            content: '',
+            created_at: new Date().toISOString()
+          }];
+          localStorage.setItem(`teta_messages_${chatId}`, JSON.stringify(updated));
+          return updated;
+        });
 
         for await (const chunk of result) {
           const text = chunk.text;
           fullContent += text;
-          setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, content: fullContent } : m));
+          setMessages(prev => {
+            const updated = prev.map(m => m.id === aiMsgId ? { ...m, content: fullContent } : m);
+            localStorage.setItem(`teta_messages_${chatId}`, JSON.stringify(updated));
+            return updated;
+          });
           
           if (isCodingMode || isGameMode || is3DMode || isCloneMode) {
-            // Extract code from markdown
             const codeMatch = fullContent.match(/```(?:html|javascript|css)?\n([\s\S]*?)```/);
             if (codeMatch) {
               setGeneratedCode(codeMatch[1]);
@@ -739,7 +867,66 @@ export default function App() {
       }
 
     } catch (error) {
-      console.error('Chat error:', error);
+      console.error('Chat error: Falling back to offline simulator:', error);
+      await handleOfflineSimulation(messageText, chatId);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleOfflineSimulation = async (text: string, finalChatId: string) => {
+    try {
+      const offlineResult = generateOfflineResponse(text, isCodingMode, isGameMode, is3DMode, isCloneMode, threeDTarget);
+      
+      const aiMsgId = Math.random().toString(36).substring(7);
+      const placeholderMsg: Message = {
+        id: aiMsgId,
+        chat_id: finalChatId,
+        role: 'model',
+        content: '',
+        created_at: new Date().toISOString()
+      };
+
+      setMessages(prev => {
+        const updated = [...prev, placeholderMsg];
+        localStorage.setItem(`teta_messages_${finalChatId}`, JSON.stringify(updated));
+        return updated;
+      });
+
+      // Simulating genuine progressive printed text stream
+      const fullContent = offlineResult.message + (offlineResult.code ? `\n\n\`\`\`html\n${offlineResult.code}\n\`\`\`` : "");
+      let currentChunk = '';
+      const words = fullContent.split(' ');
+      let wordIndex = 0;
+
+      await new Promise<void>((resolve) => {
+        const timer = setInterval(() => {
+          if (wordIndex >= words.length) {
+            clearInterval(timer);
+            resolve();
+            return;
+          }
+          currentChunk += (wordIndex === 0 ? '' : ' ') + words.slice(wordIndex, wordIndex + 4).join(' ');
+          wordIndex += 4;
+
+          setMessages(prev => {
+            const updated = prev.map(m => m.id === aiMsgId ? { ...m, content: currentChunk } : m);
+            localStorage.setItem(`teta_messages_${finalChatId}`, JSON.stringify(updated));
+            return updated;
+          });
+
+          if (offlineResult.code) {
+            setGeneratedCode(offlineResult.code);
+          }
+        }, 15);
+      });
+
+      if (autoSpeak || isVoiceMode) {
+        speak(offlineResult.message);
+      }
+
+    } catch (simErr) {
+      console.error('Failed simulation:', simErr);
     } finally {
       setIsLoading(false);
     }

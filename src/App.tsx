@@ -39,6 +39,7 @@ import { cn } from './lib/utils';
 import { User, Chat, Message } from './types';
 import { generateSpeech } from './services/gemini';
 import { generateOfflineResponse } from './services/offlineSimulator';
+import { LandingPage } from './components/LandingPage';
 
 const getSafeApiKey = (): string => {
   try {
@@ -386,13 +387,49 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'preview' | 'code'>('preview');
   const [previewDevice, setPreviewDevice] = useState<'mobile' | 'tablet' | 'desktop'>('desktop');
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [showSplash, setShowSplash] = useState(true);
+  const [showSplash, setShowSplash] = useState(false);
+  const [showLanding, setShowLanding] = useState(true);
+  const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
   const [showInstructions, setShowInstructions] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [customApiKey, setCustomApiKey] = useState(localStorage.getItem('teta_custom_gemini_key') || '');
   const [isStaticDeployment, setIsStaticDeployment] = useState(false);
   const [forceOffline, setForceOffline] = useState(localStorage.getItem('teta_force_offline') === 'true');
+
+  const handleGetStarted = (initialPrompt?: string, mode?: string) => {
+    setShowLanding(false);
+    setShowSplash(true);
+
+    if (mode) {
+      if (mode === 'builder') {
+        setIsCodingMode(true);
+        setIsGameMode(false);
+        setIs3DMode(false);
+        setIsCloneMode(false);
+      } else if (mode === 'game') {
+        setIsCodingMode(false);
+        setIsGameMode(true);
+        setIs3DMode(false);
+        setIsCloneMode(false);
+      } else if (mode === '3d') {
+        setIsCodingMode(false);
+        setIsGameMode(false);
+        setIs3DMode(true);
+        setIsCloneMode(false);
+      } else if (mode === 'clone') {
+        setIsCodingMode(false);
+        setIsGameMode(false);
+        setIs3DMode(false);
+        setIsCloneMode(true);
+      }
+    }
+
+    if (initialPrompt && initialPrompt.trim()) {
+      setInput(initialPrompt);
+      setPendingPrompt(initialPrompt);
+    }
+  };
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
@@ -1130,7 +1167,161 @@ export default function App() {
     }
   };
 
-  if (!user) return null;
+  if (showLanding) {
+    return (
+      <div className="min-h-screen bg-[#070707] text-white">
+        <LandingPage 
+          onGetStarted={handleGetStarted} 
+          onOpenSettings={() => setShowSettingsModal(true)} 
+        />
+        {/* Render Settings Modal directly on top of landing page if needed */}
+        <AnimatePresence>
+          {showSettingsModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0, y: 15 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.95, opacity: 0, y: 15 }}
+                transition={{ type: "spring", duration: 0.4 }}
+                className="w-full max-w-lg bg-neutral-900 border border-white/10 rounded-[2.5rem] overflow-hidden shadow-[0_50px_100px_rgba(0,0,0,0.8)] relative"
+              >
+                <div className="p-6 md:p-8 border-b border-white/5 flex items-center justify-between bg-white/5">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
+                      <Settings className="w-5 h-5 text-emerald-500" />
+                    </div>
+                    <div>
+                      <h3 className="font-black text-white text-base truncate uppercase tracking-wider">Engine Settings</h3>
+                      <p className="text-[10px] text-neutral-400 font-semibold uppercase tracking-widest">Environment & Core Keys</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowSettingsModal(false)}
+                    className="p-2 hover:bg-white/5 rounded-full transition-all text-neutral-400 hover:text-white"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="p-6 md:p-8 space-y-6">
+                  {/* Custom Key */}
+                  <div className="space-y-2">
+                    <label className="block text-xs font-black uppercase tracking-widest text-neutral-400">Custom Gemini API Key</label>
+                    <div className="relative">
+                      <input
+                        type="password"
+                        placeholder="Paste your Gemini key..."
+                        value={customApiKey}
+                        onChange={(e) => setCustomApiKey(e.target.value)}
+                        className="w-full bg-neutral-950 border border-white/5 rounded-2xl py-4 px-5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all font-mono"
+                      />
+                    </div>
+                    <p className="text-[10px] text-neutral-500 leading-relaxed font-semibold">
+                      Needed if hosting statically on Netlify, GitHub Pages, or Vercel. Stored securely and only in your local browser history.
+                    </p>
+                    <div className="flex gap-2.5 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          localStorage.setItem('teta_custom_gemini_key', customApiKey);
+                          setIsStaticDeployment(false); // test with custom key
+                          setTimeout(() => {
+                            window.location.reload();
+                          }, 500);
+                        }}
+                        className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-black py-2.5 px-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+                      >
+                        Save API Key
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCustomApiKey('');
+                          localStorage.removeItem('teta_custom_gemini_key');
+                          setTimeout(() => {
+                            window.location.reload();
+                          }, 500);
+                        }}
+                        className="bg-neutral-800 hover:bg-neutral-700 text-neutral-300 py-2.5 px-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all border border-white/5"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  </div>
+
+                  <hr className="border-white/5" />
+
+                  {/* Simulated Offline Mode Toggle */}
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <label className="block text-xs font-black uppercase tracking-widest text-neutral-400">Offline Simulator Only</label>
+                        <p className="text-[10px] text-neutral-500 leading-relaxed max-w-[320px]">
+                          Force all modes to work 100% offline using local AI model presets and immediate template responders.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextVal = !forceOffline;
+                          setForceOffline(nextVal);
+                          localStorage.setItem('teta_force_offline', nextVal ? 'true' : 'false');
+                        }}
+                        className={cn(
+                          "w-12 h-6 rounded-full p-1 transition-all duration-300 shrink-0",
+                          forceOffline ? "bg-emerald-500 flex justify-end" : "bg-neutral-800 flex justify-start border border-white/5"
+                        )}
+                      >
+                        <motion.div layout className="w-4 h-4 rounded-full bg-white shadow-md animate-none" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <hr className="border-white/5" />
+
+                  {/* Diagnostics Panel */}
+                  <div className="p-4 rounded-2xl bg-neutral-950 border border-white/5 space-y-2">
+                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500">Diagnostics Telemetry</h4>
+                    
+                    <div className="grid grid-cols-2 gap-3 text-[10px] uppercase font-black tracking-wider">
+                      <div className="space-y-0.5">
+                        <span className="text-neutral-500">Host Mode:</span>
+                        <p className="text-neutral-200">
+                          {isStaticDeployment ? "Static Client Only (Netlify)" : "Full Stack Server (Node)"}
+                        </p>
+                      </div>
+                      <div className="space-y-0.5">
+                        <span className="text-neutral-500">Internet Hook:</span>
+                        <p className={navigator.onLine ? "text-emerald-400" : "text-amber-500"}>
+                          {navigator.onLine ? "● Connected" : "○ Disconnected"}
+                        </p>
+                      </div>
+                      <div className="space-y-0.5">
+                        <span className="text-neutral-500">API Resolver:</span>
+                        <p className="text-neutral-200">
+                          {forceOffline ? "Offline Sim Active" : (customApiKey ? "Direct User Key" : (isStaticDeployment ? "Offline Sim (No Key)" : "System Proxy Gateway"))}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="fixed inset-0 bg-[#070707] flex items-center justify-center font-mono text-[10px] text-zinc-500 uppercase tracking-widest bg-black h-screen w-screen z-50">
+        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping mr-3" />
+        Synchronizing compiler...
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-[#0A0A0A] text-neutral-200 overflow-hidden font-sans">
@@ -1138,7 +1329,13 @@ export default function App() {
         {showSplash && (
           <SplashScreen key="splash" onComplete={() => {
             setShowSplash(false);
-            setShowInstructions(true);
+            if (pendingPrompt) {
+              setShowInstructions(false);
+              sendMessageManually(pendingPrompt);
+              setPendingPrompt(null);
+            } else {
+              setShowInstructions(true);
+            }
           }} />
         )}
         {showInstructions && (
@@ -2028,30 +2225,30 @@ export default function App() {
                     sendMessage();
                   }
                 }}
-                placeholder={is3DMode ? "Describe 3D scene..." : isCloneMode ? "URL to clone..." : "Ask TETA anything..."}
+                placeholder={is3DMode ? "Describe 3D scene..." : isCloneMode ? "URL to clone..." : "Ask TETA..."}
                 rows={1}
-                className="w-full bg-neutral-900/80 backdrop-blur-3xl border border-white/5 rounded-[2rem] py-5 pl-14 md:pl-16 pr-24 md:pr-28 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all resize-none text-base min-h-[64px] max-h-48 shadow-2xl text-white"
+                className="w-full bg-neutral-900/80 backdrop-blur-3xl border border-white/5 rounded-[2rem] py-4 md:py-5 pl-12 sm:pl-14 md:pl-16 pr-20 sm:pr-24 md:pr-28 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all resize-none text-sm md:text-base min-h-[56px] md:min-h-[64px] max-h-48 shadow-2xl text-white"
               />
-              <div className="absolute left-3 md:left-4 bottom-[15px] md:bottom-4">
+              <div className="absolute left-2.5 sm:left-3 md:left-4 bottom-2 md:bottom-4">
                 <label className="cursor-pointer group/upload">
                   <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-                  <div className="p-2.5 rounded-xl bg-white/5 text-neutral-500 group-hover/upload:text-emerald-500 transition-all">
+                  <div className="p-2 md:p-2.5 rounded-xl bg-white/5 text-neutral-500 group-hover/upload:text-emerald-500 transition-all">
                     <Paperclip className="w-4 h-4 md:w-5 md:h-5" />
                   </div>
                 </label>
               </div>
-              <div className="absolute right-2 md:right-3 bottom-2 md:bottom-3 flex items-center gap-1.5 md:gap-2">
+              <div className="absolute right-2 md:right-3 bottom-1.5 md:bottom-3 flex items-center gap-1 md:gap-2">
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   type="button"
                   onClick={toggleRecording}
                   className={cn(
-                    "p-2.5 md:p-3 rounded-2xl transition-all border shadow-lg",
+                    "p-2 md:p-3 rounded-xl sm:rounded-2xl transition-all border shadow-lg",
                     isRecording ? "bg-red-500 text-white border-red-600 shadow-[0_0_20px_rgba(239,68,68,0.4)]" : "bg-white/5 text-neutral-400 border-white/5 hover:text-white"
                   )}
                 >
-                  {isRecording ? <MicOff className="w-4 h-4 md:w-5 md:h-5" /> : <Mic className="w-4 h-4 md:w-5 md:h-5" />}
+                  {isRecording ? <MicOff className="w-3.5 h-3.5 md:w-5 md:h-5" /> : <Mic className="w-3.5 h-3.5 md:w-5 md:h-5" />}
                 </motion.button>
                 <motion.button
                   whileHover={{ scale: 1.05 }}
@@ -2059,11 +2256,11 @@ export default function App() {
                   type="submit"
                   disabled={!input.trim() || isLoading}
                   className={cn(
-                    "p-2.5 md:p-3 rounded-2xl transition-all shadow-lg border",
+                    "p-2 md:p-3 rounded-xl sm:rounded-2xl transition-all shadow-lg border",
                     input.trim() && !isLoading ? "bg-emerald-500 text-black border-emerald-600 shadow-[0_0_20px_rgba(16,185,129,0.3)]" : "bg-neutral-800 text-neutral-600 border-neutral-700"
                   )}
                 >
-                  <Send className="w-4 h-4 md:w-5 md:h-5" />
+                  <Send className="w-3.5 h-3.5 md:w-5 md:h-5" />
                 </motion.button>
               </div>
             </motion.form>

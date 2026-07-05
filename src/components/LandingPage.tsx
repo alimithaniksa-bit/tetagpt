@@ -24,9 +24,11 @@ import { cn } from '../lib/utils';
 interface LandingPageProps {
   onGetStarted: (initialPrompt?: string, targetMode?: string) => void;
   onOpenSettings: () => void;
+  onOpenAuth?: () => void;
+  user?: any;
 }
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onOpenSettings }) => {
+export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onOpenSettings, onOpenAuth, user }) => {
   const [activeTab, setActiveTab] = useState<'builder' | 'game' | '3d' | 'clone'>('builder');
   const [promptInput, setPromptInput] = useState('');
   const [typedFeatureIndex, setTypedFeatureIndex] = useState(0);
@@ -171,6 +173,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onOpenSe
           >
             <Settings className="w-5 h-5" />
           </button>
+          {onOpenAuth && (
+            <button
+              onClick={onOpenAuth}
+              className="px-4 py-2.5 bg-neutral-900 hover:bg-neutral-800 text-neutral-300 hover:text-white rounded-2xl text-xs font-black uppercase tracking-widest border border-white/5 transition-all shrink-0"
+            >
+              {(!user || user.isGuest) ? "Sign In" : user.name}
+            </button>
+          )}
           <button 
             onClick={() => handleLaunchWithPrompt()}
             className="group relative inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-black uppercase tracking-widest transition-all shadow-[0_10px_35px_rgba(16,185,129,0.2)]"

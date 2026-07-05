@@ -40,6 +40,22 @@ import { User, Chat, Message } from './types';
 import { generateSpeech } from './services/gemini';
 import { generateOfflineResponse } from './services/offlineSimulator';
 import { LandingPage } from './components/LandingPage';
+import { 
+  auth as firebaseAuth, 
+  onAuthStateChanged, 
+  signOut as firebaseSignOut,
+  db,
+  collection,
+  doc,
+  setDoc,
+  getDocs,
+  query,
+  where,
+  orderBy,
+  deleteDoc,
+  serverTimestamp
+} from './services/firebase';
+import { AuthModal } from './components/AuthModal';
 
 const getSafeApiKey = (): string => {
   try {
@@ -393,6 +409,7 @@ export default function App() {
   const [showInstructions, setShowInstructions] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [customApiKey, setCustomApiKey] = useState(localStorage.getItem('teta_custom_gemini_key') || '');
   const [isStaticDeployment, setIsStaticDeployment] = useState(false);
   const [forceOffline, setForceOffline] = useState(localStorage.getItem('teta_force_offline') === 'true');
@@ -435,8 +452,48 @@ export default function App() {
   const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
-    fetchUser();
-    
+    const unsubscribe = onAuthStateChanged(firebaseAuth, async (firebaseUser) => {
+      if (firebaseUser) {
+        console.log("Firebase user loaded:", firebaseUser.uid);
+        const loggedInUser: User = {
+          id: firebaseUser.uid,
+          name: firebaseUser.displayName || 'Teta Developer',
+          email: firebaseUser.email || '',
+          picture: firebaseUser.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${firebaseUser.uid}`,
+          created_at: firebaseUser.metadata.creationTime || new Date().toISOString(),
+          isGuest: false
+        };
+        setUser(loggedInUser);
+        localStorage.setItem('teta_user', JSON.stringify(loggedInUser));
+      } else {
+        console.log("No Firebase user active. Checking guest cache...");
+        const local = localStorage.getItem('teta_user');
+        if (local) {
+          try {
+            const parsed = JSON.parse(local);
+            if (parsed.isGuest) {
+              setUser(parsed);
+              return;
+            }
+          } catch (e) {}
+        }
+        const fallbackUser: User = {
+          id: 'local_guest_user',
+          name: 'Offline Explorer',
+          email: 'offline@teta.co',
+          picture: 'https://api.dicebear.com/7.x/avataaars/svg?seed=offline',
+          created_at: new Date().toISOString(),
+          isGuest: true
+        };
+        setUser(fallbackUser);
+        localStorage.setItem('teta_user', JSON.stringify(fallbackUser));
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
     // Setup Speech Recognition
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -495,56 +552,31 @@ export default function App() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const fetchUser = async () => {
-    if (isStaticDeployment || forceOffline) {
-      console.warn('Handling fetchUser offline/globally local');
-      const local = localStorage.getItem('teta_user');
-      if (local) {
-        setUser(JSON.parse(local));
-      } else {
-        const fallbackUser: User = {
-          id: 'local_guest_user',
-          name: 'Offline Explorer',
-          email: 'offline@teta.co',
-          picture: 'https://api.dicebear.com/7.x/avataaars/svg?seed=offline',
-          created_at: new Date().toISOString()
-        };
-        setUser(fallbackUser);
-        localStorage.setItem('teta_user', JSON.stringify(fallbackUser));
+  const fetchChats = async () => {
+    if (!user) return;
+
+    if (user && !user.isGuest) {
+      try {
+        const q = query(collection(db, `users/${user.id}/chats`), orderBy('created_at', 'desc'));
+        const snapshot = await getDocs(q);
+        const loadedChats: Chat[] = [];
+        snapshot.forEach(docSnap => {
+          const data = docSnap.data();
+          loadedChats.push({
+            id: docSnap.id,
+            user_id: data.user_id || user.id,
+            title: data.title || 'New Conversation',
+            created_at: data.created_at?.toDate?.() ? data.created_at.toDate().toISOString() : (data.created_at || new Date().toISOString())
+          });
+        });
+        setChats(loadedChats);
+        localStorage.setItem('teta_chats', JSON.stringify(loadedChats));
+      } catch (err) {
+        console.error("Firestore fetchChats error:", err);
       }
       return;
     }
 
-    try {
-      const res = await fetch('/api/me');
-      if (res.ok) {
-        const data = await res.json();
-        setUser(data);
-        localStorage.setItem('teta_user', JSON.stringify(data));
-      } else {
-        throw new Error('Server returned un-ok response');
-      }
-    } catch (err) {
-      console.warn('Offline Mode detection working: Using local storage user.');
-      setIsStaticDeployment(true);
-      const local = localStorage.getItem('teta_user');
-      if (local) {
-        setUser(JSON.parse(local));
-      } else {
-        const fallbackUser: User = {
-          id: 'local_guest_user',
-          name: 'Offline Explorer',
-          email: 'offline@teta.co',
-          picture: 'https://api.dicebear.com/7.x/avataaars/svg?seed=offline',
-          created_at: new Date().toISOString()
-        };
-        setUser(fallbackUser);
-        localStorage.setItem('teta_user', JSON.stringify(fallbackUser));
-      }
-    }
-  };
-
-  const fetchChats = async () => {
     if (isStaticDeployment || forceOffline) {
       const local = localStorage.getItem('teta_chats');
       if (local) {
@@ -576,6 +608,31 @@ export default function App() {
   };
 
   const fetchMessages = async (chatId: string) => {
+    if (!user) return;
+
+    if (user && !user.isGuest) {
+      try {
+        const q = query(collection(db, `users/${user.id}/chats/${chatId}/messages`), orderBy('created_at', 'asc'));
+        const snapshot = await getDocs(q);
+        const loadedMsgs: Message[] = [];
+        snapshot.forEach(docSnap => {
+          const data = docSnap.data();
+          loadedMsgs.push({
+            id: docSnap.id,
+            chat_id: chatId,
+            role: data.role,
+            content: data.content,
+            created_at: data.created_at?.toDate?.() ? data.created_at.toDate().toISOString() : (data.created_at || new Date().toISOString())
+          });
+        });
+        setMessages(loadedMsgs);
+        localStorage.setItem(`teta_messages_${chatId}`, JSON.stringify(loadedMsgs));
+      } catch (err) {
+        console.error("Firestore fetchMessages error:", err);
+      }
+      return;
+    }
+
     if (isStaticDeployment || forceOffline) {
       const local = localStorage.getItem(`teta_messages_${chatId}`);
       if (local) {
@@ -609,6 +666,24 @@ export default function App() {
   const createNewChat = async () => {
     const id = Math.random().toString(36).substring(7);
     const title = 'New Conversation';
+
+    if (user && !user.isGuest) {
+      try {
+        await setDoc(doc(db, `users/${user.id}/chats`, id), {
+          id,
+          user_id: user.id,
+          title,
+          created_at: serverTimestamp()
+        });
+        await fetchChats();
+        setCurrentChatId(id);
+        setMessages([]);
+        if (window.innerWidth <= 768) setIsSidebarOpen(false);
+      } catch (err) {
+        console.error("Firestore createNewChat error:", err);
+      }
+      return;
+    }
     
     if (isStaticDeployment || forceOffline) {
       console.warn('Offline mode: creating chat via localStorage');
@@ -664,6 +739,23 @@ export default function App() {
 
   const deleteChat = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
+
+    if (user && !user.isGuest) {
+      try {
+        const msgsSnapshot = await getDocs(collection(db, `users/${user.id}/chats/${id}/messages`));
+        const deletePromises = msgsSnapshot.docs.map(docSnap => deleteDoc(docSnap.ref));
+        await Promise.all(deletePromises);
+        await deleteDoc(doc(db, `users/${user.id}/chats`, id));
+        if (currentChatId === id) {
+          setCurrentChatId(null);
+          setMessages([]);
+        }
+        await fetchChats();
+      } catch (err) {
+        console.error("Firestore deleteChat error:", err);
+      }
+      return;
+    }
 
     if (isStaticDeployment || forceOffline) {
       console.warn('Offline mode: deleting chat via localStorage');
@@ -756,30 +848,44 @@ export default function App() {
     if (!chatId) {
       const newId = Math.random().toString(36).substring(7);
       const title = messageText.slice(0, 30) + (messageText.length > 30 ? '...' : '');
-      try {
-        const res = await fetch('/api/chats', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: newId, title: title || 'New 3D/Code Project' }),
-        });
-        if (res.ok) {
+      if (user && !user.isGuest) {
+        try {
+          await setDoc(doc(db, `users/${user.id}/chats`, newId), {
+            id: newId,
+            user_id: user.id,
+            title: title || 'New 3D/Code Project',
+            created_at: serverTimestamp()
+          });
           await fetchChats();
-        } else {
-          throw new Error('Failed to create chat in REST endpoint');
+        } catch (err) {
+          console.error("Firestore new chat error:", err);
         }
-      } catch (err) {
-        console.warn('Offline mode: creating chat metadata offline');
-        const local = localStorage.getItem('teta_chats');
-        const loadedChats = local ? JSON.parse(local) : [];
-        const newChatObj: Chat = {
-          id: newId,
-          user_id: user?.id || 'local_guest_user',
-          title: title || 'New 3D/Code Project',
-          created_at: new Date().toISOString()
-        };
-        loadedChats.unshift(newChatObj);
-        localStorage.setItem('teta_chats', JSON.stringify(loadedChats));
-        setChats(loadedChats);
+      } else {
+        try {
+          const res = await fetch('/api/chats', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: newId, title: title || 'New 3D/Code Project' }),
+          });
+          if (res.ok) {
+            await fetchChats();
+          } else {
+            throw new Error('Failed to create chat in REST endpoint');
+          }
+        } catch (err) {
+          console.warn('Offline mode: creating chat metadata offline');
+          const local = localStorage.getItem('teta_chats');
+          const loadedChats = local ? JSON.parse(local) : [];
+          const newChatObj: Chat = {
+            id: newId,
+            user_id: user?.id || 'local_guest_user',
+            title: title || 'New 3D/Code Project',
+            created_at: new Date().toISOString()
+          };
+          loadedChats.unshift(newChatObj);
+          localStorage.setItem('teta_chats', JSON.stringify(loadedChats));
+          setChats(loadedChats);
+        }
       }
       chatId = newId;
       setCurrentChatId(newId);
@@ -860,7 +966,18 @@ export default function App() {
     }
 
     try {
-      if (!isStaticDeployment) {
+      if (user && !user.isGuest) {
+        try {
+          await setDoc(doc(db, `users/${user.id}/chats/${chatId}/messages`, userMsgId), {
+            id: userMsgId,
+            role: 'user',
+            content: userMsg.content,
+            created_at: serverTimestamp()
+          });
+        } catch (e) {
+          console.error("Firestore user message write error:", e);
+        }
+      } else if (!isStaticDeployment) {
         try {
           await fetch(`/api/chats/${chatId}/messages`, {
             method: 'POST',
@@ -912,7 +1029,18 @@ export default function App() {
           return updated;
         });
 
-        if (!isStaticDeployment) {
+        if (user && !user.isGuest) {
+          try {
+            await setDoc(doc(db, `users/${user.id}/chats/${chatId}/messages`, aiMsgId), {
+              id: aiMsgId,
+              role: 'model',
+              content,
+              created_at: serverTimestamp()
+            });
+          } catch (e) {
+            console.error("Firestore image reply write error:", e);
+          }
+        } else if (!isStaticDeployment) {
           try {
             await fetch(`/api/chats/${chatId}/messages`, {
               method: 'POST',
@@ -1001,7 +1129,18 @@ export default function App() {
           }
         }
 
-        if (!isStaticDeployment) {
+        if (user && !user.isGuest) {
+          try {
+            await setDoc(doc(db, `users/${user.id}/chats/${chatId}/messages`, aiMsgId), {
+              id: aiMsgId,
+              role: 'model',
+              content: fullContent,
+              created_at: serverTimestamp()
+            });
+          } catch (e) {
+            console.error("Firestore stream save error:", e);
+          }
+        } else if (!isStaticDeployment) {
           try {
             await fetch(`/api/chats/${chatId}/messages`, {
               method: 'POST',
@@ -1074,6 +1213,19 @@ export default function App() {
           }
         }, 15);
       });
+
+      if (user && !user.isGuest) {
+        try {
+          await setDoc(doc(db, `users/${user.id}/chats/${finalChatId}/messages`, aiMsgId), {
+            id: aiMsgId,
+            role: 'model',
+            content: fullContent,
+            created_at: serverTimestamp()
+          });
+        } catch (e) {
+          console.error("Firestore offline msg save error:", e);
+        }
+      }
 
       if (autoSpeak || isVoiceMode) {
         speak(offlineResult.message);
@@ -1173,6 +1325,16 @@ export default function App() {
         <LandingPage 
           onGetStarted={handleGetStarted} 
           onOpenSettings={() => setShowSettingsModal(true)} 
+          onOpenAuth={() => setShowAuthModal(true)}
+          user={user}
+        />
+        <AuthModal 
+          isOpen={showAuthModal} 
+          onClose={() => setShowAuthModal(false)} 
+          onAuthSuccess={(u) => {
+            setUser(u);
+            setShowAuthModal(false);
+          }} 
         />
         {/* Render Settings Modal directly on top of landing page if needed */}
         <AnimatePresence>
@@ -1426,7 +1588,7 @@ export default function App() {
 
             <div className="p-6 border-t border-white/5 flex flex-col gap-3">
               <div className="flex items-center gap-4 p-4 glass-card rounded-2xl border border-white/5 shadow-xl">
-                <img src={user.picture} className="w-10 h-10 rounded-xl border border-white/10 shadow-lg" alt={user.name} />
+                <img src={user.picture} className="w-10 h-10 rounded-xl border border-white/10 shadow-lg animate-none" alt={user.name} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-bold truncate text-white">{user.name}</p>
@@ -1437,6 +1599,28 @@ export default function App() {
                   <p className="text-[10px] text-neutral-500 truncate font-medium">{user.email}</p>
                 </div>
               </div>
+
+              {user.isGuest ? (
+                <button 
+                  onClick={() => setShowAuthModal(true)}
+                  className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-black uppercase tracking-widest transition-all shadow-[0_4px_15px_rgba(16,185,129,0.2)]"
+                >
+                  <Sparkles className="w-4 h-4 text-black animate-pulse" />
+                  Sign In / Sign Up
+                </button>
+              ) : (
+                <button 
+                  onClick={async () => {
+                    await firebaseSignOut(firebaseAuth);
+                    localStorage.removeItem('teta_user');
+                    window.location.reload();
+                  }}
+                  className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl border border-red-500/20 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-black uppercase tracking-widest transition-all"
+                >
+                  <LogOut className="w-4 h-4 text-red-400" />
+                  Sign Out
+                </button>
+              )}
 
               <button 
                 onClick={() => setShowSettingsModal(true)}
@@ -2407,6 +2591,14 @@ export default function App() {
           </div>
         )}
       </AnimatePresence>
+      <AuthModal 
+        isOpen={showAuthModal} 
+        onClose={() => setShowAuthModal(false)} 
+        onAuthSuccess={(u) => {
+          setUser(u);
+          setShowAuthModal(false);
+        }} 
+      />
     </div>
   );
 }

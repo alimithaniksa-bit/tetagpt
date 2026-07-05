@@ -1,0 +1,10 @@
+{
+  "projectId": "tetagpt",
+  "appId": "1:1079040208954:web:c5bfcf0d9037feef848503",
+  "apiKey": "AIzaSyAcw1dHXKOsABefkzTVjBjaWA9MQEPOVzQ",
+  "authDomain": "tetagpt.firebaseapp.com",
+  "firestoreDatabaseId": "ai-studio-tetagpt-13f894e1-ef44-4766-916c-f558f3113d96",
+  "storageBucket": "tetagpt.firebasestorage.app",
+  "messagingSenderId": "1079040208954",
+  "measurementId": ""
+}

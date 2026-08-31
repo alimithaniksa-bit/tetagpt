@@ -1536,7 +1536,10 @@ export default function App() {
                 <div className="p-2 bg-emerald-500/10 rounded-xl border border-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.1)]">
                   <TetaLogo className="w-6 h-6" />
                 </div>
-                <span className="font-black tracking-tighter text-xl text-white">TETA <span className="text-emerald-500">GPT</span></span>
+                <div>
+                  <span className="font-black tracking-tight text-lg text-white">TETAGPT</span>
+                  <span className="block text-[8px] font-black tracking-[0.2em] text-emerald-400 uppercase">Cosmic Builder</span>
+                </div>
               </div>
               {isMobile && (
                 <button onClick={() => setIsSidebarOpen(false)} className="p-2 hover:bg-white/5 rounded-lg transition-colors">
@@ -1649,7 +1652,7 @@ export default function App() {
               <div className="p-1 md:p-1.5 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
                 <Sparkles className="w-3 h-3 md:w-4 md:h-4 text-emerald-500 shrink-0" />
               </div>
-              <span className="hidden xs:inline text-white uppercase tracking-widest text-[9px] md:text-[10px]">TETA GPT</span>
+              <span className="hidden xs:inline text-white uppercase tracking-wider text-[9px] md:text-[11px] font-black">Tetagpt Cosmic Builder</span>
               <span className="text-neutral-700 font-normal hidden xs:inline">/</span> 
               <span className="truncate max-w-[100px] md:max-w-none text-neutral-400 font-bold text-xs md:text-sm">
                 {currentChatId ? chats.find(c => c.id === currentChatId)?.title : 'New Chat'}

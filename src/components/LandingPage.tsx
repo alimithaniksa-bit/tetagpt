@@ -149,8 +149,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onOpenSe
             </svg>
           </div>
           <div>
-            <span className="font-black text-xl tracking-tight text-white uppercase">TETA<span className="text-emerald-500">GPT</span></span>
-            <span className="block text-[8px] tracking-[0.2em] font-bold text-neural-500 text-neutral-400">COSMIC BUILDER</span>
+            <span className="font-black text-xl tracking-tight text-white uppercase">TETAGPT</span>
+            <span className="block text-[8px] tracking-[0.2em] font-black text-emerald-400 uppercase">COSMIC BUILDER</span>
           </div>
         </div>
 

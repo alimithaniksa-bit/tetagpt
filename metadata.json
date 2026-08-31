@@ -1,6 +1,6 @@
 {
-  "name": "TETA GPT",
-  "description": "A sophisticated GPT platform featuring real-time text and voice interaction, personalized dashboards, and secure Google OAuth integration.",
+  "name": "Tetagpt Cosmic Builder",
+  "description": "A sophisticated GPT platform and cosmic builder featuring real-time code generation, interactive 3D WebGL, canvas games, voice interactions, and Firebase persistence.",
   "requestFramePermissions": ["microphone"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

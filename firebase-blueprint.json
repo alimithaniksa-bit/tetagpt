@@ -1,0 +1,33 @@
+{
+  "entities": {
+    "User": {
+      "collection": "users",
+      "fields": {
+        "id": "string",
+        "name": "string",
+        "email": "string",
+        "picture": "string",
+        "created_at": "string",
+        "updatedAt": "timestamp"
+      }
+    },
+    "Chat": {
+      "collection": "users/{userId}/chats",
+      "fields": {
+        "id": "string",
+        "user_id": "string",
+        "title": "string",
+        "created_at": "timestamp"
+      }
+    },
+    "Message": {
+      "collection": "users/{userId}/chats/{chatId}/messages",
+      "fields": {
+        "id": "string",
+        "role": "string",
+        "content": "string",
+        "created_at": "timestamp"
+      }
+    }
+  }
+}

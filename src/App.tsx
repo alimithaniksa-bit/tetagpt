@@ -1177,7 +1177,47 @@ Your name is Tetagpt, an autonomous cosmic AI creation engine by tetagpt.co.`;
         } else if (isGameMode) {
           systemInstruction = "You are a professional game developer. When asked to build a game, provide a SINGLE block of self-contained HTML, CSS, and JavaScript (using Canvas API or standard Web APIs) that can run in any browser and play offline. Support dual inputs: keyboard controls (Arrow keys/WASD) for desktop AND responsive on-screen touch controls (Virtual D-Pad/tap buttons) so the game is 100% playable on mobile screens and in fullscreen! Include score tracking, high score saved to localStorage, pause/restart buttons, particle effects, and synthesized sound effects using the Web Audio API. Wrap the code in a single markdown ```html ... ``` code block. Your name is Tetagpt, an autonomous cosmic AI creation engine by tetagpt.co.";
         } else if (is3DMode) {
-          systemInstruction = `You are a professional 3D graphics engineer and CAD specialist. When asked to create a 3D scene or model, provide a SINGLE block of code containing HTML, CSS, and JavaScript (using Three.js CDN: <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script> and OrbitControls: <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>) that can run in a browser. Focus on creating visually stunning, responsive 3D geometry with realistic lighting, materials, and orbit controls. All 3D models you generate are automatically exportable by the user into native Autodesk AutoCAD (.dxf) and Blender Python (.py / .obj) files, so use clean modular meshes with distinct materials and colors. Target: ${threeDTarget === 'game' ? 'Integrate this 3D model into an interactive game environment with controls.' : 'Create a standalone high-fidelity 3D scene.'} Wrap the code in a single markdown \`\`\`html ... \`\`\` code block. Your name is Tetagpt, an autonomous cosmic AI creation engine by tetagpt.co.`;
+          systemInstruction = `You are a world-class 3D character artist, graphics engineer, and CAD modeler.
+When asked to create a 3D model, character, creature, or object (whether from a PHOTO REFERENCE or detailed text description):
+
+1. COMPREHENSIVE VISUAL DECONSTRUCTION (FROM PHOTO REFERENCE OR DETAILED TEXT):
+   - Scrutinize any provided image or text prompt in extreme detail.
+   - For CHARACTERS / HUMANOIDS (anime, warriors, samurai, superheroes, avatars, soldiers):
+     * Head & Face: Proportions, facial planes, glowing visor or eyes, ears/horns, detailed sculpted hair/helmet/crest.
+     * Torso & Attire: Segmented chest armor plates, collar, abdominal belt, tactical pouches or garments.
+     * Arms & Hands: Shoulders (pauldrons), upper arms, forearms/gauntlets, hands/fists.
+     * Pelvis & Legs: Armored hip plates, thighs, knee guards, calf boots, and feet.
+     * Signature Weapons & Accessories: Glowing energy blade/katana, blaster, cape, wings, backpack, emblems.
+   - For ROBOTS / MECHS: Heavy cockpit sensor, armored chassis, plasma reactor core, shoulder weapon pods, hydraulic bipedal limbs, thrusters.
+   - For CREATURES / MONSTERS: Articulated snout, horns, scales, segmented spine, wings with membranes, quadruped/biped limbs, claws, tail.
+   - For WEAPONS / HARD-SURFACE: Blade edges, fuller energy channels, crossguard gems, hilt wrap, pommel counterweights.
+   - COLOR PALETTE EXTRACTION: Extract exact authentic colors, metallic sheens, and vibrant emissive accents (neon cyan, amber, red, violet) from the reference image or description.
+
+2. TECHNICAL EXECUTION (Three.js & OrbitControls):
+   - Provide a SINGLE, complete, self-contained HTML file (using Three.js r128: <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script> and OrbitControls: <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>).
+   - Build compound geometries (BoxGeometry, CylinderGeometry, SphereGeometry, ConeGeometry, TorusGeometry, LatheGeometry, ExtrudeGeometry) combined into hierarchical THREE.Group() structures (characterGroup, headGroup, torsoGroup, leftArmGroup, rightArmGroup, legsGroup, weaponGroup).
+   - Use MeshStandardMaterial with authentic roughness, metalness, and emissive properties.
+   - Enable shadow casting and receiving on all meshes (castShadow = true, receiveShadow = true).
+   - STUDIO 3-POINT LIGHTING RIG:
+     * Directional Key Light with shadow map for dramatic highlights.
+     * Ambient / Fill light for soft shadow fill.
+     * Colorful Rim / Back light (cyan, amber, or magenta) to accentuate the character's silhouette and contours!
+     * Floor / Pedestal: Glowing circular platform or grid stage, subtle floating ambient dust/ember particles.
+   - INTERACTIVE CONTROLS & ANIMATIONS:
+     * OrbitControls with smooth damping (enableDamping: true, dampingFactor: 0.05).
+     * Idle animation loop: subtle breathing/bobbing motion, floating hover, glowing pulse on emissive weapons/eyes.
+     * In-scene UI Overlay: Add a sleek translucent floating bar at the top or bottom with buttons:
+       - 🔄 "Auto-Rotate" toggle
+       - 🕸️ "Wireframe" toggle
+       - 💡 "Lighting" toggle (Studio / Dramatic / Cyberpunk)
+       - 🎯 "Center Camera" view reset
+
+3. EXPORT-READY MESHES:
+   - Use clean modular mesh naming so the user can easily download native Autodesk AutoCAD (.dxf) and Blender Python (.py / .obj) files using the download buttons in the top toolbar.
+
+4. Output format:
+   - Single standalone HTML file wrapped in a single markdown \`\`\`html ... \`\`\` code block.
+Your name is Tetagpt, an autonomous cosmic AI creation engine by tetagpt.co.`;
         } else if (isCodingMode) {
           systemInstruction = "You are a professional web developer. When asked to build an app or website, provide a SINGLE block of code containing HTML, CSS, and JavaScript that can run in a browser. Your code MUST be fully mobile-responsive and include the `<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">` tag. Use modern CSS techniques like Flexbox, Grid, and Tailwind CSS via CDN. Ensure all elements scale correctly on small screens and in fullscreen. Wrap the code in a single markdown ```html ... ``` code block. Your name is Tetagpt, an autonomous cosmic AI creation engine by tetagpt.co.";
         }
@@ -2690,10 +2730,10 @@ Your name is Tetagpt, an autonomous cosmic AI creation engine by tetagpt.co.`;
                 />
                 <div className="text-left pr-6">
                   <span className="text-[10px] font-black uppercase text-emerald-400 tracking-wider flex items-center gap-1">
-                    📸 Screenshot Loaded for Exact Clone
+                    {is3DMode ? '🖼️ Photo Reference Loaded for 3D Modeling' : '📸 Screenshot Loaded for Exact Clone'}
                   </span>
                   <p className="text-[11px] text-neutral-300 font-medium max-w-xs truncate">
-                    Ready to replicate layout, typography, colors & interactive components
+                    {is3DMode ? 'Tetagpt will deconstruct anatomy, proportions, geometry & textures into 3D' : 'Ready to replicate layout, typography, colors & interactive components'}
                   </p>
                 </div>
                 <button 
@@ -2746,32 +2786,84 @@ Your name is Tetagpt, an autonomous cosmic AI creation engine by tetagpt.co.`;
               <motion.div 
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="flex items-center gap-2 p-2 bg-white/5 backdrop-blur-xl rounded-2xl border border-white/5 shadow-2xl overflow-x-auto no-scrollbar scroll-smooth"
+                className="flex flex-col gap-2 p-2.5 bg-white/5 backdrop-blur-xl rounded-2xl border border-white/5 shadow-2xl"
               >
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-neutral-900/50 rounded-xl border border-white/5 shrink-0">
-                  <span className="text-[10px] font-black uppercase text-neutral-500 tracking-widest hidden xs:inline">Mode:</span>
-                  <button 
-                    onClick={() => setThreeDTarget('standalone')}
-                    className={cn(
-                      "px-3 py-1 rounded-lg text-[10px] font-bold transition-all",
-                      threeDTarget === 'standalone' ? "bg-emerald-500 text-black shadow-[0_0_15px_rgba(16,185,129,0.3)]" : "text-neutral-500 hover:text-neutral-300"
-                    )}
-                  >
-                    Standalone
-                  </button>
-                  <button 
-                    onClick={() => setThreeDTarget('game')}
-                    className={cn(
-                      "px-3 py-1 rounded-lg text-[10px] font-bold transition-all",
-                      threeDTarget === 'game' ? "bg-emerald-500 text-black shadow-[0_0_15px_rgba(16,185,129,0.3)]" : "text-neutral-500 hover:text-neutral-300"
-                    )}
-                  >
-                    Asset
-                  </button>
+                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar scroll-smooth">
+                  {/* Photo Reference Upload Button */}
+                  <label className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 rounded-xl border border-emerald-500/30 shrink-0 text-[10px] font-black uppercase tracking-wider transition-all shadow-md">
+                    <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                    <Camera className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Upload Photo / Character Reference</span>
+                  </label>
+
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-neutral-900/50 rounded-xl border border-white/5 shrink-0">
+                    <span className="text-[10px] font-black uppercase text-neutral-400 tracking-widest hidden xs:inline">Type:</span>
+                    <button 
+                      type="button"
+                      onClick={() => setThreeDTarget('standalone')}
+                      className={cn(
+                        "px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all",
+                        threeDTarget === 'standalone' ? "bg-emerald-500 text-black shadow-md" : "text-neutral-400 hover:text-white"
+                      )}
+                    >
+                      Character / Scene
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => setThreeDTarget('game')}
+                      className={cn(
+                        "px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all",
+                        threeDTarget === 'game' ? "bg-emerald-500 text-black shadow-md" : "text-neutral-400 hover:text-white"
+                      )}
+                    >
+                      Game Asset
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-500/10 rounded-xl border border-sky-500/20 shrink-0 text-sky-400 text-[10px] font-black uppercase tracking-wider">
+                    <Compass className="w-3.5 h-3.5 text-sky-400" />
+                    <span>AutoCAD & Blender Ready</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 rounded-xl border border-emerald-500/20 shrink-0">
-                  <Download className="w-3.5 h-3.5 text-emerald-500" />
-                  <span className="text-[10px] font-black uppercase text-emerald-500 tracking-widest">Available</span>
+
+                {/* Quick 3D Inspiration Starters */}
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-1">
+                  <span className="text-[9px] font-black uppercase text-neutral-500 tracking-wider shrink-0 pl-1">Ideas:</span>
+                  <button
+                    type="button"
+                    onClick={() => setInput("A detailed 3D cyberpunk samurai warrior character with a demon kabuto helmet, glowing cyan optical visor, segmented carbon-fiber chest armor, dual shoulder pauldrons, articulated gauntlets, and holding a glowing energy katana on an illuminated pedestal stage.")}
+                    className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-emerald-500/20 hover:text-emerald-300 text-neutral-400 text-[10px] font-medium tracking-wide whitespace-nowrap transition-all border border-white/5 hover:border-emerald-500/30 shrink-0"
+                  >
+                    🦸 Cyber Samurai
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInput("An armored heavy assault sci-fi mech robot with dual shoulder-mounted missile pods, a central glowing plasma reactor core, articulated hydraulic bipedal legs, heavy steel gauntlets, and rear propulsion thrusters.")}
+                    className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-emerald-500/20 hover:text-emerald-300 text-neutral-400 text-[10px] font-medium tracking-wide whitespace-nowrap transition-all border border-white/5 hover:border-emerald-500/30 shrink-0"
+                  >
+                    🤖 Heavy Assault Mech
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInput("A mythical emerald elemental dragon creature with jagged obsidian horns, glowing amber eyes, segmented spinal ridges, wide membrane wings, articulated claws, and a barbed tail perched on a cracked magma rock pedestal.")}
+                    className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-emerald-500/20 hover:text-emerald-300 text-neutral-400 text-[10px] font-medium tracking-wide whitespace-nowrap transition-all border border-white/5 hover:border-emerald-500/30 shrink-0"
+                  >
+                    🐉 Elemental Dragon
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInput("A legendary sci-fi energy blade katana with a luminous cyan plasma core, faceted titanium crossguard with embedded power gem, textured braided hilt grip, and displayed on a futuristic floating weapon rack.")}
+                    className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-emerald-500/20 hover:text-emerald-300 text-neutral-400 text-[10px] font-medium tracking-wide whitespace-nowrap transition-all border border-white/5 hover:border-emerald-500/30 shrink-0"
+                  >
+                    ⚔️ Legendary Energy Blade
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setInput("A sleek aerodynamic high-speed cyber hovercraft vehicle with dual rear jet thrusters, glowing cyan cockpit glass canopy, rear spoiler wings, and angular stealth armor plating.")}
+                    className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-emerald-500/20 hover:text-emerald-300 text-neutral-400 text-[10px] font-medium tracking-wide whitespace-nowrap transition-all border border-white/5 hover:border-emerald-500/30 shrink-0"
+                  >
+                    🏎️ Cyber Hovercraft
+                  </button>
                 </div>
               </motion.div>
             )}
@@ -2792,7 +2884,7 @@ Your name is Tetagpt, an autonomous cosmic AI creation engine by tetagpt.co.`;
                     sendMessage();
                   }
                 }}
-                placeholder={is3DMode ? "Describe 3D scene (e.g. Cyberpunk city, solar orbit, terrain)..." : isCloneMode ? "Enter domain to clone (e.g. apple.com, stripe.com) or upload screenshot..." : isGameMode ? "Describe game mechanics (e.g. Retro Space shooter, Platformer)..." : "Ask Tetagpt to build..."}
+                placeholder={is3DMode ? "Upload character photo or describe in detail (e.g. Cyberpunk samurai with glowing katana, anime hero, mech warrior)..." : isCloneMode ? "Enter domain to clone (e.g. apple.com, stripe.com) or upload screenshot..." : isGameMode ? "Describe game mechanics (e.g. Retro Space shooter, Platformer)..." : "Ask Tetagpt to build..."}
                 rows={1}
                 className="w-full bg-neutral-900/80 backdrop-blur-3xl border border-white/5 rounded-[2rem] py-4 md:py-5 pl-12 sm:pl-14 md:pl-16 pr-20 sm:pr-24 md:pr-28 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all resize-none text-sm md:text-base min-h-[56px] md:min-h-[64px] max-h-48 shadow-2xl text-white"
               />

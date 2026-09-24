@@ -55,6 +55,26 @@ export const generateOfflineResponse = (
 
   // --- 3D MODE OFFLINE TEMPLATES ---
   if (is3DMode) {
+    if (
+      normPrompt.includes('character') ||
+      normPrompt.includes('samurai') ||
+      normPrompt.includes('warrior') ||
+      normPrompt.includes('hero') ||
+      normPrompt.includes('avatar') ||
+      normPrompt.includes('anime') ||
+      normPrompt.includes('robot') ||
+      normPrompt.includes('mech') ||
+      normPrompt.includes('dragon') ||
+      normPrompt.includes('creature') ||
+      normPrompt.includes('sword') ||
+      normPrompt.includes('photo') ||
+      normPrompt.includes('person')
+    ) {
+      return {
+        message: `### TetaGPT (Offline Mode Activated) 🦸\n\nI have generated an articulated **3D Cyberpunk Samurai Character Model** with modular anatomical mesh parts (Cranium, glowing optical visor, kabuto crest, segmented carbon-fiber chestplate, shoulder pauldrons, articulated gauntlets, and luminous plasma katana on an illuminated display pedestal)!\n\n✨ **Interactive Features:**\n*   **360° Orbit & Zoom:** Click and drag to inspect from any angle.\n*   **Floating HUD Controls:** Toggle Wireframe mode, Auto-Rotate, and Studio Lighting presets.\n*   **CAD & Blender Ready:** Download the native **Blender Python (.py)** script or **Autodesk AutoCAD (.dxf)** drawing directly from the top toolbar!`,
+        code: get3DCharacterModelCode()
+      };
+    }
     if (normPrompt.includes('space') || normPrompt.includes('solar') || normPrompt.includes('galaxy') || normPrompt.includes('universe')) {
       return {
         message: `### TetaGPT (Offline Mode Activated)\n\nI have created a breathtaking **3D Celestial Solar Orbit Simulator**. Since Three.js might be unreachable offline, I built this on a **Hybrid high-fidelity CSS 3D & Math Matrix Projection engine** to guarantee smooth 60fps rendering without any internet connection!\n\n📦 **CAD & Blender Ready:** You can now download this 3D creation directly as a **Blender Project (.py / .obj)** or native **Autodesk AutoCAD File (.dxf)** using the top toolbar buttons!`,
@@ -1489,6 +1509,324 @@ const get3DCrystalCode = (threeDTarget: 'standalone' | 'game'): string => {
     };
 
     draw();
+  </script>
+</body>
+</html>`;
+};
+
+const get3DCharacterModelCode = (): string => {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tetagpt: 3D Cyberpunk Samurai Character</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <style>
+    body { margin: 0; padding: 0; overflow: hidden; background: #050508; font-family: system-ui, sans-serif; }
+    #canvas-container { width: 100vw; height: 100vh; display: block; }
+    .hud-panel {
+      backdrop-filter: blur(16px);
+      background: rgba(10, 10, 15, 0.75);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+  </style>
+</head>
+<body class="relative w-screen h-screen select-none">
+  <!-- 3D Viewport Container -->
+  <div id="canvas-container"></div>
+
+  <!-- Top Title HUD -->
+  <div class="absolute top-4 left-4 z-20 pointer-events-none">
+    <div class="hud-panel px-4 py-2 rounded-2xl flex items-center gap-3 shadow-2xl">
+      <div class="w-3 h-3 rounded-full bg-emerald-400 animate-ping"></div>
+      <div>
+        <h1 class="text-xs font-black uppercase tracking-wider text-white">Cyber Samurai 3D Model</h1>
+        <p class="text-[10px] text-emerald-400 font-mono">CAD & Blender Geometry Ready</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- In-Scene Interactive Controls Floating HUD -->
+  <div class="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 hud-panel p-2 rounded-2xl shadow-2xl">
+    <button id="btn-spin" class="px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500 hover:text-black text-emerald-400 text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-1.5">
+      <span>🔄</span> <span>Spin: ON</span>
+    </button>
+    <button id="btn-wire" class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/15 text-neutral-300 text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-1.5">
+      <span>🕸️</span> <span>Wireframe</span>
+    </button>
+    <button id="btn-light" class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/15 text-neutral-300 text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-1.5">
+      <span>💡</span> <span>Lighting</span>
+    </button>
+    <button id="btn-reset" class="px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/15 text-neutral-300 text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-1.5">
+      <span>🎯</span> <span>Reset View</span>
+    </button>
+  </div>
+
+  <script>
+    // 1. Scene, Camera, Renderer Setup
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x050508, 0.025);
+
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(0, 4.5, 12);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    container.appendChild(renderer.domElement);
+
+    // 2. OrbitControls
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.target.set(0, 3.5, 0);
+    controls.maxPolarAngle = Math.PI / 2 + 0.05;
+    controls.minDistance = 3;
+    controls.maxDistance = 25;
+
+    // 3. Studio 3-Point Lighting Rig
+    const keyLight = new THREE.DirectionalLight(0xffffff, 2.2);
+    keyLight.position.set(6, 12, 8);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.width = 1024;
+    keyLight.shadow.mapSize.height = 1024;
+    scene.add(keyLight);
+
+    const fillLight = new THREE.DirectionalLight(0x38bdf8, 1.2);
+    fillLight.position.set(-8, 6, -4);
+    scene.add(fillLight);
+
+    const rimLight = new THREE.PointLight(0x00f5ff, 3.5, 15);
+    rimLight.position.set(0, 6, -6);
+    scene.add(rimLight);
+
+    const ambientLight = new THREE.AmbientLight(0x0a0f1d, 1.5);
+    scene.add(ambientLight);
+
+    // 4. Materials Palette
+    const armorMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.3, metalness: 0.8 });
+    const suitMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.6, metalness: 0.3 });
+    const goldMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.25, metalness: 0.9 });
+    const visorMat = new THREE.MeshStandardMaterial({ color: 0x00f5ff, emissive: 0x00f5ff, emissiveIntensity: 2.0, roughness: 0.1 });
+    const katanaBladeMat = new THREE.MeshStandardMaterial({ color: 0x10b981, emissive: 0x10b981, emissiveIntensity: 2.5, roughness: 0.1 });
+
+    // 5. Construct Modular Character Hierarchy
+    const characterGroup = new THREE.Group();
+    scene.add(characterGroup);
+
+    // --- HEAD & KABUTO ---
+    const headGroup = new THREE.Group();
+    headGroup.position.set(0, 5.8, 0);
+
+    const cranium = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.3, 1.2), suitMat);
+    cranium.castShadow = true;
+    headGroup.add(cranium);
+
+    const visor = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.3, 0.4), visorMat);
+    visor.position.set(0, 0.1, 0.55);
+    headGroup.add(visor);
+
+    const helmetCrest = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.2, 4), goldMat);
+    helmetCrest.position.set(0, 0.9, 0.2);
+    helmetCrest.rotation.x = 0.2;
+    headGroup.add(helmetCrest);
+
+    characterGroup.add(headGroup);
+
+    // --- TORSO & CHEST ARMOR ---
+    const torsoGroup = new THREE.Group();
+    torsoGroup.position.set(0, 4.0, 0);
+
+    const chestArmor = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.8, 1.4), armorMat);
+    chestArmor.castShadow = true;
+    torsoGroup.add(chestArmor);
+
+    const powerCore = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.2, 16), visorMat);
+    powerCore.rotation.x = Math.PI / 2;
+    powerCore.position.set(0, 0.2, 0.7);
+    torsoGroup.add(powerCore);
+
+    const belt = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.6, 1.2), suitMat);
+    belt.position.set(0, -1.0, 0);
+    torsoGroup.add(belt);
+
+    characterGroup.add(torsoGroup);
+
+    // --- SHOULDERS & ARMS ---
+    // Left Arm
+    const leftArmGroup = new THREE.Group();
+    leftArmGroup.position.set(-1.6, 4.6, 0);
+
+    const pouldronL = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.7, 0.9), armorMat);
+    pouldronL.castShadow = true;
+    leftArmGroup.add(pouldronL);
+
+    const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 1.2, 12), suitMat);
+    armL.position.set(0, -0.9, 0);
+    leftArmGroup.add(armL);
+
+    const gauntletL = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.9, 0.6), goldMat);
+    gauntletL.position.set(0, -1.8, 0.2);
+    leftArmGroup.add(gauntletL);
+
+    characterGroup.add(leftArmGroup);
+
+    // Right Arm with Katana Blade
+    const rightArmGroup = new THREE.Group();
+    rightArmGroup.position.set(1.6, 4.6, 0);
+
+    const pouldronR = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.7, 0.9), armorMat);
+    pouldronR.castShadow = true;
+    rightArmGroup.add(pouldronR);
+
+    const armR = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 1.2, 12), suitMat);
+    armR.position.set(0, -0.9, 0);
+    rightArmGroup.add(armR);
+
+    const gauntletR = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.9, 0.6), goldMat);
+    gauntletR.position.set(0, -1.8, 0.2);
+    rightArmGroup.add(gauntletR);
+
+    // Energy Katana
+    const katanaGroup = new THREE.Group();
+    katanaGroup.position.set(0, -2.1, 0.4);
+    katanaGroup.rotation.x = -Math.PI / 4;
+
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.08, 3.4, 0.25), katanaBladeMat);
+    blade.position.set(0, 1.8, 0);
+    katanaGroup.add(blade);
+
+    const tsuba = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.08, 0.5), goldMat);
+    katanaGroup.add(tsuba);
+
+    const hilt = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.8, 8), suitMat);
+    hilt.position.set(0, -0.4, 0);
+    katanaGroup.add(hilt);
+
+    rightArmGroup.add(katanaGroup);
+    characterGroup.add(rightArmGroup);
+
+    // --- LEGS & BOOTS ---
+    const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.3, 1.6, 12), suitMat);
+    legL.position.set(-0.65, 1.8, 0);
+    legL.castShadow = true;
+    characterGroup.add(legL);
+
+    const bootL = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.2, 0.9), armorMat);
+    bootL.position.set(-0.65, 0.6, 0.1);
+    bootL.castShadow = true;
+    characterGroup.add(bootL);
+
+    const legR = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.3, 1.6, 12), suitMat);
+    legR.position.set(0.65, 1.8, 0);
+    legR.castShadow = true;
+    characterGroup.add(legR);
+
+    const bootR = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.2, 0.9), armorMat);
+    bootR.position.set(0.65, 0.6, 0.1);
+    bootR.castShadow = true;
+    characterGroup.add(bootR);
+
+    // --- DISPLAY PEDESTAL ---
+    const pedestalGroup = new THREE.Group();
+    const stage = new THREE.Mesh(new THREE.CylinderGeometry(3.6, 4.0, 0.4, 32), armorMat);
+    stage.position.set(0, -0.2, 0);
+    stage.receiveShadow = true;
+    pedestalGroup.add(stage);
+
+    const auraRing = new THREE.Mesh(new THREE.TorusGeometry(3.8, 0.08, 16, 64), visorMat);
+    auraRing.rotation.x = Math.PI / 2;
+    auraRing.position.set(0, 0.02, 0);
+    pedestalGroup.add(auraRing);
+
+    scene.add(pedestalGroup);
+
+    // Floating Particles
+    const particleGeo = new THREE.BufferGeometry();
+    const particleCount = 120;
+    const posArray = new Float32Array(particleCount * 3);
+    for(let i=0; i<particleCount*3; i+=3) {
+      posArray[i] = (Math.random() - 0.5) * 12;
+      posArray[i+1] = Math.random() * 8;
+      posArray[i+2] = (Math.random() - 0.5) * 12;
+    }
+    particleGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+    const particleMat = new THREE.PointsMaterial({ size: 0.05, color: 0x00f5ff, transparent: true, opacity: 0.6 });
+    const particleSystem = new THREE.Points(particleGeo, particleMat);
+    scene.add(particleSystem);
+
+    // 6. Animation & Interaction Loop
+    let autoRotate = true;
+    let isWireframe = false;
+    let lightingMode = 0;
+    let clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const elapsed = clock.getElapsedTime();
+
+      // Idle breathing & bobbing motion
+      characterGroup.position.y = Math.sin(elapsed * 2) * 0.08;
+      katanaBladeMat.emissiveIntensity = 2.0 + Math.sin(elapsed * 4) * 0.8;
+
+      if (autoRotate) {
+        characterGroup.rotation.y += 0.008;
+      }
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // 7. HUD Event Handlers
+    document.getElementById('btn-spin').addEventListener('click', (e) => {
+      autoRotate = !autoRotate;
+      e.currentTarget.querySelector('span:last-child').textContent = autoRotate ? 'Spin: ON' : 'Spin: OFF';
+    });
+
+    document.getElementById('btn-wire').addEventListener('click', () => {
+      isWireframe = !isWireframe;
+      scene.traverse((child) => {
+        if (child.isMesh && child !== stage) {
+          child.material.wireframe = isWireframe;
+        }
+      });
+    });
+
+    document.getElementById('btn-light').addEventListener('click', () => {
+      lightingMode = (lightingMode + 1) % 3;
+      if (lightingMode === 0) {
+        // Cyberpunk
+        rimLight.color.setHex(0x00f5ff);
+        fillLight.color.setHex(0xa855f7);
+      } else if (lightingMode === 1) {
+        // Studio Gold
+        rimLight.color.setHex(0xf59e0b);
+        fillLight.color.setHex(0xffffff);
+      } else {
+        // Crimson Stealth
+        rimLight.color.setHex(0xef4444);
+        fillLight.color.setHex(0x38bdf8);
+      }
+    });
+
+    document.getElementById('btn-reset').addEventListener('click', () => {
+      camera.position.set(0, 4.5, 12);
+      controls.target.set(0, 3.5, 0);
+      characterGroup.rotation.set(0, 0, 0);
+    });
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
   </script>
 </body>
 </html>`;

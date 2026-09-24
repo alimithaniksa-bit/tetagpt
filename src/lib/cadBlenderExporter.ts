@@ -284,6 +284,183 @@ export const createPolyhedronCrystalMesh = (
 };
 
 // ==========================================
+// ====== CHARACTER & ADVANCED SCULPTORS ====
+// ==========================================
+
+export const createCharacterMeshSet = (
+  characterName: string,
+  primaryColor = '#10b981',
+  accentColor = '#38bdf8',
+  suitColor = '#1e293b'
+): MeshData[] => {
+  const meshes: MeshData[] = [];
+
+  // Head & Facial Features
+  meshes.push(createBoxMesh('Head_Cranium', 1.4, 1.5, 1.4, 0, 7.2, 0, '#fbcfe8', '3D_CHAR_HEAD'));
+  meshes.push(createBoxMesh('Head_Visor_Optics', 1.2, 0.35, 0.6, 0, 7.3, 0.65, accentColor, '3D_CHAR_VISOR'));
+  meshes.push(createBoxMesh('Hair_Helmet_Crown', 1.6, 0.8, 1.6, 0, 8.0, -0.1, primaryColor, '3D_CHAR_HELMET'));
+  meshes.push(createCylinderMesh('Neck_Joint', 0.45, 0.6, 12, 0, 6.3, 0, suitColor, '3D_CHAR_ANATOMY'));
+
+  // Torso & Armor Plates
+  meshes.push(createBoxMesh('Chest_Torso_Armor', 2.6, 2.2, 1.6, 0, 5.0, 0, suitColor, '3D_CHAR_TORSO'));
+  meshes.push(createBoxMesh('Chest_Emblem_Plate', 1.4, 1.2, 0.4, 0, 5.2, 0.85, primaryColor, '3D_CHAR_CHEST_ARMOR'));
+  meshes.push(createBoxMesh('Abdomen_Core_Belt', 2.0, 1.0, 1.3, 0, 3.8, 0, '#0f172a', '3D_CHAR_BELT'));
+  meshes.push(createBoxMesh('Pelvis_Waist_Armor', 2.2, 0.9, 1.4, 0, 3.0, 0, suitColor, '3D_CHAR_PELVIS'));
+
+  // Shoulders & Arms (Left & Right)
+  meshes.push(createBoxMesh('Shoulder_Puldron_L', 1.2, 0.9, 1.2, -1.9, 5.7, 0, primaryColor, '3D_CHAR_SHOULDERS'));
+  meshes.push(createBoxMesh('Shoulder_Puldron_R', 1.2, 0.9, 1.2, 1.9, 5.7, 0, primaryColor, '3D_CHAR_SHOULDERS'));
+
+  meshes.push(createCylinderMesh('Upper_Arm_L', 0.38, 1.4, 12, -1.9, 4.6, 0, suitColor, '3D_CHAR_LIMBS'));
+  meshes.push(createCylinderMesh('Upper_Arm_R', 0.38, 1.4, 12, 1.9, 4.6, 0, suitColor, '3D_CHAR_LIMBS'));
+
+  meshes.push(createBoxMesh('Forearm_Gauntlet_L', 0.7, 1.3, 0.8, -1.9, 3.4, 0.3, primaryColor, '3D_CHAR_GAUNTLETS'));
+  meshes.push(createBoxMesh('Forearm_Gauntlet_R', 0.7, 1.3, 0.8, 1.9, 3.4, 0.3, primaryColor, '3D_CHAR_GAUNTLETS'));
+
+  meshes.push(createBoxMesh('Hand_Fist_L', 0.5, 0.6, 0.6, -1.9, 2.5, 0.6, suitColor, '3D_CHAR_HANDS'));
+  meshes.push(createBoxMesh('Hand_Fist_R', 0.5, 0.6, 0.6, 1.9, 2.5, 0.6, suitColor, '3D_CHAR_HANDS'));
+
+  // Signature Weapon (Energy Katana / Saber)
+  meshes.push(createBoxMesh('Weapon_Energy_Blade', 0.1, 4.0, 0.35, 2.3, 4.5, 1.2, accentColor, '3D_CHAR_WEAPON'));
+  meshes.push(createBoxMesh('Weapon_Blade_Guard', 0.6, 0.12, 0.6, 2.3, 2.4, 1.2, '#f59e0b', '3D_CHAR_WEAPON'));
+  meshes.push(createCylinderMesh('Weapon_Hilt_Grip', 0.18, 1.1, 10, 2.3, 1.8, 1.2, '#334155', '3D_CHAR_WEAPON'));
+
+  // Legs & Footwear
+  meshes.push(createCylinderMesh('Thigh_Leg_L', 0.5, 1.8, 14, -0.8, 2.0, 0, suitColor, '3D_CHAR_LEGS'));
+  meshes.push(createCylinderMesh('Thigh_Leg_R', 0.5, 1.8, 14, 0.8, 2.0, 0, suitColor, '3D_CHAR_LEGS'));
+
+  meshes.push(createBoxMesh('Knee_Guard_L', 0.65, 0.65, 0.45, -0.8, 1.1, 0.5, primaryColor, '3D_CHAR_KNEES'));
+  meshes.push(createBoxMesh('Knee_Guard_R', 0.65, 0.65, 0.45, 0.8, 1.1, 0.5, primaryColor, '3D_CHAR_KNEES'));
+
+  meshes.push(createBoxMesh('Calf_Boot_L', 0.8, 1.5, 1.3, -0.8, 0.3, 0.15, suitColor, '3D_CHAR_BOOTS'));
+  meshes.push(createBoxMesh('Calf_Boot_R', 0.8, 1.5, 1.3, 0.8, 0.3, 0.15, suitColor, '3D_CHAR_BOOTS'));
+
+  // Display Pedestal Podium with Ring
+  meshes.push(createCylinderMesh('Pedestal_Display_Stage', 4.5, 0.4, 28, 0, -0.6, 0, '#0f172a', '3D_PEDESTAL'));
+  meshes.push(createCylinderMesh('Pedestal_Aura_Ring', 4.8, 0.1, 32, 0, -0.4, 0, primaryColor, '3D_PEDESTAL'));
+
+  return meshes;
+};
+
+export const createRobotMechMeshSet = (
+  mechName: string,
+  chassisColor = '#0284c7',
+  accentColor = '#f59e0b',
+  frameColor = '#1e293b'
+): MeshData[] => {
+  const meshes: MeshData[] = [];
+
+  // Heavy Cockpit & Optical Head
+  meshes.push(createBoxMesh('Mech_Cockpit_Head', 2.2, 1.6, 2.2, 0, 7.0, 0.4, chassisColor, '3D_MECH_COCKPIT'));
+  meshes.push(createBoxMesh('Mech_Optical_Sensor', 1.8, 0.4, 0.4, 0, 7.1, 1.5, '#ef4444', '3D_MECH_OPTICS'));
+  meshes.push(createCylinderMesh('Mech_Neck_Rotator', 0.9, 0.7, 16, 0, 6.0, 0, frameColor, '3D_MECH_CHASSIS'));
+
+  // Heavy Armored Torso with Reactor
+  meshes.push(createBoxMesh('Mech_Chest_Chassis', 4.2, 2.8, 2.8, 0, 4.6, 0, frameColor, '3D_MECH_CHASSIS'));
+  meshes.push(createCylinderMesh('Mech_Plasma_Reactor', 1.1, 0.6, 18, 0, 4.8, 1.4, accentColor, '3D_MECH_REACTOR'));
+  meshes.push(createBoxMesh('Mech_Thruster_Pack', 3.4, 2.4, 1.2, 0, 4.8, -1.8, chassisColor, '3D_MECH_THRUSTERS'));
+  meshes.push(createCylinderMesh('Mech_Exhaust_L', 0.6, 1.0, 14, -1.2, 4.8, -2.4, '#f97316', '3D_MECH_THRUSTERS'));
+  meshes.push(createCylinderMesh('Mech_Exhaust_R', 0.6, 1.0, 14, 1.2, 4.8, -2.4, '#f97316', '3D_MECH_THRUSTERS'));
+
+  // Heavy Shoulder Pods & Cannons
+  meshes.push(createBoxMesh('Shoulder_Pod_L', 1.8, 1.6, 2.0, -3.0, 5.6, 0, chassisColor, '3D_MECH_SHOULDERS'));
+  meshes.push(createBoxMesh('Shoulder_Pod_R', 1.8, 1.6, 2.0, 3.0, 5.6, 0, chassisColor, '3D_MECH_SHOULDERS'));
+  meshes.push(createCylinderMesh('Shoulder_Cannon_L', 0.4, 3.0, 14, -3.0, 6.6, 1.0, frameColor, '3D_MECH_CANNON'));
+  meshes.push(createCylinderMesh('Shoulder_Cannon_R', 0.4, 3.0, 14, 3.0, 6.6, 1.0, frameColor, '3D_MECH_CANNON'));
+
+  // Hydraulic Arms & Heavy Gauntlets
+  meshes.push(createCylinderMesh('Arm_Actuator_L', 0.6, 1.8, 12, -3.0, 4.2, 0, frameColor, '3D_MECH_ARMS'));
+  meshes.push(createCylinderMesh('Arm_Actuator_R', 0.6, 1.8, 12, 3.0, 4.2, 0, frameColor, '3D_MECH_ARMS'));
+  meshes.push(createBoxMesh('Heavy_Gauntlet_L', 1.2, 1.8, 1.4, -3.0, 2.8, 0.4, chassisColor, '3D_MECH_ARMS'));
+  meshes.push(createBoxMesh('Heavy_Gauntlet_R', 1.2, 1.8, 1.4, 3.0, 2.8, 0.4, chassisColor, '3D_MECH_ARMS'));
+
+  // Massive Bipedal Legs & Treads
+  meshes.push(createCylinderMesh('Leg_Hydraulic_L', 0.8, 2.2, 16, -1.4, 2.0, 0, frameColor, '3D_MECH_LEGS'));
+  meshes.push(createCylinderMesh('Leg_Hydraulic_R', 0.8, 2.2, 16, 1.4, 2.0, 0, frameColor, '3D_MECH_LEGS'));
+  meshes.push(createBoxMesh('Knee_Armor_Plate_L', 1.1, 1.0, 0.9, -1.4, 1.1, 0.8, chassisColor, '3D_MECH_KNEES'));
+  meshes.push(createBoxMesh('Knee_Armor_Plate_R', 1.1, 1.0, 0.9, 1.4, 1.1, 0.8, chassisColor, '3D_MECH_KNEES'));
+  meshes.push(createBoxMesh('Mech_Foot_Pad_L', 1.6, 0.6, 2.6, -1.4, -0.2, 0.4, frameColor, '3D_MECH_FEET'));
+  meshes.push(createBoxMesh('Mech_Foot_Pad_R', 1.6, 0.6, 2.6, 1.4, -0.2, 0.4, frameColor, '3D_MECH_FEET'));
+
+  // Heavy Foundry Base
+  meshes.push(createBoxMesh('Hangar_Floor_Grate', 10.0, 0.4, 10.0, 0, -0.7, 0, '#0f172a', '3D_PEDESTAL'));
+  meshes.push(createBoxMesh('Hangar_Warning_Border', 10.4, 0.1, 10.4, 0, -0.5, 0, accentColor, '3D_PEDESTAL'));
+
+  return meshes;
+};
+
+export const createCreatureDragonMeshSet = (
+  creatureName: string,
+  scaleColor = '#10b981',
+  wingColor = '#065f46',
+  bellyColor = '#f59e0b'
+): MeshData[] => {
+  const meshes: MeshData[] = [];
+
+  // Head, Snout & Horns
+  meshes.push(createBoxMesh('Dragon_Head_Cranium', 1.8, 1.4, 2.2, 0, 5.2, 2.4, scaleColor, '3D_CREATURE_HEAD'));
+  meshes.push(createBoxMesh('Dragon_Snout_Muzzle', 1.2, 0.8, 1.6, 0, 4.9, 4.0, scaleColor, '3D_CREATURE_SNOUT'));
+  meshes.push(createBoxMesh('Dragon_Glowing_Eyes', 1.4, 0.3, 0.4, 0, 5.4, 3.2, '#fbbf24', '3D_CREATURE_EYES'));
+  meshes.push(createCylinderMesh('Dragon_Horn_L', 0.2, 1.8, 10, -0.8, 6.4, 1.8, '#f59e0b', '3D_CREATURE_HORNS'));
+  meshes.push(createCylinderMesh('Dragon_Horn_R', 0.2, 1.8, 10, 0.8, 6.4, 1.8, '#f59e0b', '3D_CREATURE_HORNS'));
+
+  // Neck & Spine
+  meshes.push(createCylinderMesh('Dragon_Neck', 1.0, 2.4, 14, 0, 4.2, 1.4, scaleColor, '3D_CREATURE_NECK'));
+  meshes.push(createBoxMesh('Dragon_Body_Chest', 3.2, 2.4, 4.0, 0, 3.0, -0.6, scaleColor, '3D_CREATURE_BODY'));
+  meshes.push(createBoxMesh('Dragon_Underbelly', 2.2, 1.8, 3.2, 0, 2.2, -0.4, bellyColor, '3D_CREATURE_BELLY'));
+
+  // Wings (Left & Right)
+  meshes.push(createBoxMesh('Wing_Arm_L', 4.5, 0.3, 0.6, -3.2, 4.5, -0.8, scaleColor, '3D_CREATURE_WINGS'));
+  meshes.push(createBoxMesh('Wing_Arm_R', 4.5, 0.3, 0.6, 3.2, 4.5, -0.8, scaleColor, '3D_CREATURE_WINGS'));
+  meshes.push(createBoxMesh('Wing_Membrane_L', 5.0, 0.1, 3.4, -3.5, 4.0, -2.2, wingColor, '3D_CREATURE_WINGS'));
+  meshes.push(createBoxMesh('Wing_Membrane_R', 5.0, 0.1, 3.4, 3.5, 4.0, -2.2, wingColor, '3D_CREATURE_WINGS'));
+
+  // Limbs with Claws
+  meshes.push(createCylinderMesh('Forelimb_L', 0.5, 2.2, 12, -1.6, 1.4, 0.8, scaleColor, '3D_CREATURE_LIMBS'));
+  meshes.push(createCylinderMesh('Forelimb_R', 0.5, 2.2, 12, 1.6, 1.4, 0.8, scaleColor, '3D_CREATURE_LIMBS'));
+  meshes.push(createCylinderMesh('Hindlimb_L', 0.7, 2.6, 12, -1.8, 1.6, -2.0, scaleColor, '3D_CREATURE_LIMBS'));
+  meshes.push(createCylinderMesh('Hindlimb_R', 0.7, 2.6, 12, 1.8, 1.6, -2.0, scaleColor, '3D_CREATURE_LIMBS'));
+
+  // Tail
+  meshes.push(createBoxMesh('Tail_Segment_1', 1.2, 1.0, 3.0, 0, 2.6, -3.8, scaleColor, '3D_CREATURE_TAIL'));
+  meshes.push(createBoxMesh('Tail_Spade_Blade', 0.2, 1.6, 1.4, 0, 2.6, -5.6, '#f59e0b', '3D_CREATURE_TAIL'));
+
+  // Volcanic / Fantasy Pedestal
+  meshes.push(createCylinderMesh('Fantasy_Stage_Platform', 5.0, 0.5, 24, 0, -0.3, 0, '#1c1917', '3D_PEDESTAL'));
+  meshes.push(createCylinderMesh('Magma_Energy_Ring', 5.2, 0.1, 28, 0, -0.1, 0, '#ef4444', '3D_PEDESTAL'));
+
+  return meshes;
+};
+
+export const createWeaponPropMeshSet = (
+  weaponName: string,
+  bladeColor = '#00f5ff',
+  guardColor = '#f59e0b',
+  gripColor = '#1e293b'
+): MeshData[] => {
+  const meshes: MeshData[] = [];
+
+  // Main Blade / Beam
+  meshes.push(createBoxMesh('Weapon_Blade_Core', 0.25, 8.0, 0.9, 0, 4.5, 0, bladeColor, '3D_WEAPON_BLADE'));
+  meshes.push(createBoxMesh('Weapon_Blade_Edge', 0.08, 8.2, 1.1, 0, 4.6, 0, '#ffffff', '3D_WEAPON_EDGE'));
+  meshes.push(createBoxMesh('Weapon_Fuller_Channel', 0.35, 6.0, 0.25, 0, 4.0, 0, '#0284c7', '3D_WEAPON_BLADE'));
+
+  // Crossguard & Emblems
+  meshes.push(createBoxMesh('Crossguard_Main', 2.8, 0.5, 1.0, 0, 0.3, 0, guardColor, '3D_WEAPON_GUARD'));
+  meshes.push(createCylinderMesh('Guard_Gem_Core', 0.45, 1.1, 14, 0, 0.3, 0, bladeColor, '3D_WEAPON_GEM'));
+
+  // Handle Grip & Pommel
+  meshes.push(createCylinderMesh('Handle_Hilt_Grip', 0.35, 2.6, 14, 0, -1.2, 0, gripColor, '3D_WEAPON_HILT'));
+  meshes.push(createBoxMesh('Pommel_Counterweight', 0.8, 0.8, 0.8, 0, -2.7, 0, guardColor, '3D_WEAPON_POMMEL'));
+
+  // Display Stand
+  meshes.push(createBoxMesh('Pedestal_Weapon_Rack', 3.6, 0.4, 2.2, 0, -3.4, 0, '#0f172a', '3D_PEDESTAL'));
+  meshes.push(createCylinderMesh('Stand_Support_Pillars', 0.15, 2.0, 10, 0, -2.4, 0, '#475569', '3D_PEDESTAL'));
+
+  return meshes;
+};
+
+// ==========================================
 // ====== EXTRACT OR ASSEMBLE 3D MODEL ======
 // ==========================================
 
@@ -293,7 +470,95 @@ export const extractOrGenerate3DModel = (
   promptContext = ''
 ): Model3DData => {
   const norm = (code + ' ' + promptContext).toLowerCase();
-  const meshes: MeshData[] = [];
+  let meshes: MeshData[] = [];
+
+  // A. Check if Character / Humanoid / Hero / Samurai / Warrior / Avatar / Anime / Person / Photo Reference
+  if (
+    norm.includes('character') ||
+    norm.includes('human') ||
+    norm.includes('warrior') ||
+    norm.includes('samurai') ||
+    norm.includes('avatar') ||
+    norm.includes('anime') ||
+    norm.includes('person') ||
+    norm.includes('hero') ||
+    norm.includes('knight') ||
+    norm.includes('ninja') ||
+    norm.includes('soldier') ||
+    norm.includes('cyberpunk') ||
+    norm.includes('action figure') ||
+    norm.includes('photo') ||
+    norm.includes('reference')
+  ) {
+    // Choose theme colors based on context
+    const primary = norm.includes('cyber') || norm.includes('neon') ? '#00f5ff' : norm.includes('gold') || norm.includes('samurai') ? '#f59e0b' : '#10b981';
+    const accent = norm.includes('red') ? '#ef4444' : norm.includes('purple') ? '#a855f7' : '#38bdf8';
+    meshes = createCharacterMeshSet(projectName || 'Detailed_3D_Character', primary, accent, '#1e293b');
+
+    return {
+      title: projectName || 'Articulated_3D_Character',
+      description: 'Fully articulated 3D character model with head, visor, torso armor, shoulders, limbs, weapon, and display pedestal',
+      meshes
+    };
+  }
+
+  // B. Robot / Mech / Android / Cyborg / Exosuit
+  if (
+    norm.includes('robot') ||
+    norm.includes('mech') ||
+    norm.includes('android') ||
+    norm.includes('cyborg') ||
+    norm.includes('exosuit') ||
+    norm.includes('gundam') ||
+    norm.includes('transformer') ||
+    norm.includes('drone')
+  ) {
+    meshes = createRobotMechMeshSet(projectName || 'Heavy_Armored_Mech', '#0284c7', '#f59e0b', '#1e293b');
+    return {
+      title: projectName || 'Heavy_Armored_Mech',
+      description: 'Articulated bipedal heavy sci-fi mech with cockpit, reactor core, shoulder cannons, and hydraulic actuators',
+      meshes
+    };
+  }
+
+  // C. Creature / Dragon / Monster / Beast / Animal
+  if (
+    norm.includes('creature') ||
+    norm.includes('dragon') ||
+    norm.includes('monster') ||
+    norm.includes('beast') ||
+    norm.includes('dinosaur') ||
+    norm.includes('alien') ||
+    norm.includes('animal') ||
+    norm.includes('wolf')
+  ) {
+    meshes = createCreatureDragonMeshSet(projectName || 'Mythical_Creature_Dragon', '#10b981', '#065f46', '#f59e0b');
+    return {
+      title: projectName || 'Mythical_Creature_Dragon',
+      description: 'Anatomically sculpted 3D creature with snout, horns, articulated wings, limbs, tail, and magma platform',
+      meshes
+    };
+  }
+
+  // D. Weapon / Prop / Sword / Gun / Artifact
+  if (
+    norm.includes('sword') ||
+    norm.includes('weapon') ||
+    norm.includes('blade') ||
+    norm.includes('gun') ||
+    norm.includes('blaster') ||
+    norm.includes('staff') ||
+    norm.includes('shield') ||
+    norm.includes('katana') ||
+    norm.includes('artifact')
+  ) {
+    meshes = createWeaponPropMeshSet(projectName || 'Legendary_Energy_Blade', '#00f5ff', '#f59e0b', '#1e293b');
+    return {
+      title: projectName || 'Legendary_Energy_Blade',
+      description: 'Precision hard-surface 3D weapon with core blade, fuller channel, crossguard gem, and display rack',
+      meshes
+    };
+  }
 
   // 1. Check if architectural / city / buildings
   if (norm.includes('city') || norm.includes('building') || norm.includes('tower') || norm.includes('architect') || norm.includes('house')) {
@@ -323,8 +588,8 @@ export const extractOrGenerate3DModel = (
     };
   }
 
-  // 2. Mechanical / Engineering / Gear / Robot
-  if (norm.includes('gear') || norm.includes('engine') || norm.includes('robot') || norm.includes('mechanic') || norm.includes('part') || norm.includes('drone')) {
+  // 2. Mechanical / Engineering / Gear
+  if (norm.includes('gear') || norm.includes('engine') || norm.includes('mechanic') || norm.includes('part')) {
     // Central Hub
     meshes.push(createCylinderMesh('Central_Gear_Hub', 2.2, 1.2, 20, 0, 0, 0, '#059669', '3D_MECH_CORE'));
     meshes.push(createCylinderMesh('Central_Axle_Bore', 0.8, 1.6, 16, 0, 0, 0, '#047857', '3D_MECH_BORE'));
@@ -372,7 +637,7 @@ export const extractOrGenerate3DModel = (
   }
 
   // 4. Vehicle / Aircraft / Spaceship
-  if (norm.includes('car') || norm.includes('ship') || norm.includes('plane') || norm.includes('flight') || norm.includes('cyberpunk') || norm.includes('speed')) {
+  if (norm.includes('car') || norm.includes('ship') || norm.includes('plane') || norm.includes('flight') || norm.includes('speed')) {
     // Main Fuselage
     meshes.push(createBoxMesh('Main_Fuselage', 3.2, 1.4, 7.0, 0, 1.0, 0, '#0f172a', '3D_VEHICLE_BODY'));
     // Cockpit canopy

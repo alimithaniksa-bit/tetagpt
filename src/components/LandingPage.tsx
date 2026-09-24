@@ -116,8 +116,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onOpenSe
       id: 'clone' as const,
       label: 'Clone Mode',
       icon: <Copy className="w-5 h-5 text-orange-400" />,
-      tagline: 'Deconstruct and replicate existing layouts',
-      desc: 'Paste any reference URL to reverse-engineer its components, colors, spacing ratios, and structural sections into standard Tailwind layers.',
+      tagline: 'Pixel-perfect website and mobile app cloning with screenshot input',
+      desc: 'Enter any website domain or upload screenshots of any mobile app or site to generate an exact, high-fidelity copy. Download the standalone code to run locally with one click.',
       color: 'border-orange-500/20 bg-orange-500/5 hover:bg-orange-500/10'
     }
   ];
@@ -205,7 +205,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onOpenSe
             className="inline-flex items-center gap-2 px-4 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400 mx-auto"
           >
             <Sparkles className="w-3.5 h-3.5" />
-            Empowered by Gemini 2.5 & 3-Flash Engines
+            Empowered by Tetagpt Cosmic AI Engine
           </motion.div>
 
           {/* Big Impressive Headline */}
@@ -667,7 +667,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onOpenSe
           <span className="w-1.5 h-1.5 rounded-full bg-neutral-600" />
           <span className="font-mono text-[9px]">v2.5.0 STABLE</span>
         </div>
-        <p className="font-medium">© {new Date().getFullYear()} TetaGPT. All rights reserved. Powered by Teta Technologies & Gemini AI.</p>
+        <p className="font-medium">© {new Date().getFullYear()} TetaGPT. All rights reserved. Powered by Tetagpt Cosmic Technologies.</p>
         <div className="flex justify-center gap-6 text-[10px] font-bold uppercase tracking-widest text-[#555] pt-2">
           <span>Local Storage Persistence</span>
           <span>•</span>

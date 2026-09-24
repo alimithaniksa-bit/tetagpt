@@ -2,7 +2,7 @@ import { GoogleGenAI } from "@google/genai";
 
 const getSafeApiKey = (): string => {
   try {
-    const customKey = localStorage.getItem('teta_custom_gemini_key');
+    const customKey = localStorage.getItem('teta_custom_api_key') || localStorage.getItem('teta_custom_gemini_key');
     if (customKey) return customKey;
     
     // Check vite env
@@ -24,7 +24,7 @@ export const getGeminiResponse = async (messages: { role: string; content: strin
   const model = ai.models.generateContent({
     model: "gemini-3-flash-preview",
     config: {
-      systemInstruction: "Your name is Tetagpt, a large learn model by tetagpt.co. Always identify yourself as such if asked about your name or origin.",
+      systemInstruction: "Your name is Tetagpt, an autonomous cosmic AI creation engine by tetagpt.co. Always identify yourself as such if asked about your name or origin.",
     },
     contents: messages.map(m => ({
       role: m.role === 'user' ? 'user' : 'model',
@@ -87,7 +87,7 @@ export const getGeminiStream = async (messages: { role: string; content: string 
   const chat = ai.chats.create({
     model: "gemini-3-flash-preview",
     config: {
-      systemInstruction: "Your name is Tetagpt, a large learn model by tetagpt.co. Always identify yourself as such if asked about your name or origin.",
+      systemInstruction: "Your name is Tetagpt, an autonomous cosmic AI creation engine by tetagpt.co. Always identify yourself as such if asked about your name or origin.",
     },
     history: messages.slice(0, -1).map(m => ({
       role: m.role === 'user' ? 'user' : 'model',
@@ -97,3 +97,7 @@ export const getGeminiStream = async (messages: { role: string; content: string 
 
   return chat.sendMessageStream({ message: messages[messages.length - 1].content });
 };
+
+export const getTetagptStream = getGeminiStream;
+export const getTetagptResponse = getGeminiResponse;
+

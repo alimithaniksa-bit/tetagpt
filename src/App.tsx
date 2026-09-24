@@ -27,9 +27,15 @@ import {
   Smartphone,
   Tablet,
   Maximize2,
+  Minimize2,
   Gamepad2,
   Box,
-  Paperclip
+  Paperclip,
+  Camera,
+  FolderDown,
+  Layers,
+  Check,
+  ExternalLink
 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { GoogleGenAI } from "@google/genai";
@@ -40,6 +46,8 @@ import { User, Chat, Message } from './types';
 import { generateSpeech } from './services/gemini';
 import { generateOfflineResponse } from './services/offlineSimulator';
 import { LandingPage } from './components/LandingPage';
+import { ExportModal } from './components/ExportModal';
+import { downloadStandaloneHtml, downloadProjectZip } from './lib/projectExporter';
 import { 
   auth as firebaseAuth, 
   onAuthStateChanged, 
@@ -59,7 +67,7 @@ import { AuthModal } from './components/AuthModal';
 
 const getSafeApiKey = (): string => {
   try {
-    const customKey = localStorage.getItem('teta_custom_gemini_key');
+    const customKey = localStorage.getItem('teta_custom_api_key') || localStorage.getItem('teta_custom_gemini_key');
     if (customKey) return customKey;
     
     // Check vite env
@@ -73,6 +81,25 @@ const getSafeApiKey = (): string => {
     // Ignore
   }
   return "";
+};
+
+const extractDomainOrUrl = (text: string): { url: string; domain: string } | null => {
+  if (!text) return null;
+  const httpMatch = text.match(/https?:\/\/[^\s]+/i);
+  if (httpMatch) {
+    try {
+      const parsed = new URL(httpMatch[0]);
+      return { url: httpMatch[0], domain: parsed.hostname.replace('www.', '') };
+    } catch (e) {
+      return { url: httpMatch[0], domain: httpMatch[0] };
+    }
+  }
+  const domainMatch = text.match(/(?:(?:clone|replicate|copy|make|build)\s+)?([a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\/[^\s]*)?)/i);
+  if (domainMatch && domainMatch[1]) {
+    const dom = domainMatch[1].trim();
+    return { url: `https://${dom}`, domain: dom.split('/')[0].replace('www.', '') };
+  }
+  return null;
 };
 
 // Unique & Amazing TETA Logo Component
@@ -403,6 +430,9 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'preview' | 'code'>('preview');
   const [previewDevice, setPreviewDevice] = useState<'mobile' | 'tablet' | 'desktop'>('desktop');
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [cloneSourceDomain, setCloneSourceDomain] = useState<string | null>(null);
+  const previewContainerRef = useRef<HTMLDivElement>(null);
   const [showSplash, setShowSplash] = useState(false);
   const [showLanding, setShowLanding] = useState(true);
   const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
@@ -410,9 +440,22 @@ export default function App() {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [customApiKey, setCustomApiKey] = useState(localStorage.getItem('teta_custom_gemini_key') || '');
+  const [customApiKey, setCustomApiKey] = useState(localStorage.getItem('teta_custom_api_key') || localStorage.getItem('teta_custom_gemini_key') || '');
   const [isStaticDeployment, setIsStaticDeployment] = useState(false);
   const [forceOffline, setForceOffline] = useState(localStorage.getItem('teta_force_offline') === 'true');
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullscreen) {
+        if (document.fullscreenElement) {
+          document.exitFullscreen?.().catch(() => {});
+        }
+        setIsFullscreen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isFullscreen]);
 
   const handleGetStarted = (initialPrompt?: string, mode?: string) => {
     setShowLanding(false);
@@ -805,18 +848,27 @@ export default function App() {
 
   const downloadSourceCode = () => {
     if (!generatedCode) return;
-    const blob = new Blob([generatedCode], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    let fileName = 'teta-project.html';
-    if (isGameMode) fileName = 'teta-game.html';
-    if (is3DMode) fileName = 'teta-3d-model.html';
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    setShowExportModal(true);
+  };
+
+  const toggleFullscreen = () => {
+    if (!isFullscreen) {
+      setIsFullscreen(true);
+      try {
+        if (previewContainerRef.current && previewContainerRef.current.requestFullscreen) {
+          previewContainerRef.current.requestFullscreen().catch(() => {});
+        } else if (document.documentElement.requestFullscreen) {
+          document.documentElement.requestFullscreen().catch(() => {});
+        }
+      } catch (e) {
+        // Fallback to in-app fullscreen CSS overlay
+      }
+    } else {
+      if (document.fullscreenElement) {
+        document.exitFullscreen?.().catch(() => {});
+      }
+      setIsFullscreen(false);
+    }
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1051,26 +1103,69 @@ export default function App() {
         }
 
       } else {
-        if (isCloneMode) {
-          const urlMatch = messageText.match(/https?:\/\/[^\s]+/);
-          if (urlMatch) {
-            setSourceUrl(urlMatch[0]);
-          }
+        const domainMatch = extractDomainOrUrl(messageText);
+        if (domainMatch) {
+          setSourceUrl(domainMatch.url);
+          setCloneSourceDomain(domainMatch.domain);
         }
+
         if (!key) {
-          throw new Error('No API Key for Gemini stream.');
+          throw new Error('No API Key configured for Tetagpt stream. Please enter your API key in Settings.');
         }
         const aiInstance = new GoogleGenAI({ apiKey: key });
-        let systemInstruction = "Your name is Tetagpt, a large learn model by tetagpt.co. Always identify yourself as such if asked about your name or origin.";
+        let systemInstruction = "Your name is Tetagpt, an autonomous cosmic AI creation engine by tetagpt.co. Always identify yourself as such if asked about your name or origin.";
         
-        if (isCodingMode) {
-          systemInstruction = "You are a professional web developer. When asked to build an app or website, provide a SINGLE block of code containing HTML, CSS, and JavaScript that can run in a browser. Your code MUST be fully mobile-responsive and include the `<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">` tag. Use modern CSS techniques like Flexbox, Grid, and media queries. Prefer using Tailwind CSS via CDN for styling. Ensure all elements scale correctly on small screens. Do not provide multiple files. Wrap the code in a markdown code block. Your name is Tetagpt, a large learn model by tetagpt.co.";
+        if (currentImage) {
+          systemInstruction = `You are a master UI/UX reverse-engineer and full-stack frontend architect.
+The user has provided a SCREENSHOT of a mobile app or website.
+Your mission is to generate an ACCURATELY EXACT, PIXEL-PERFECT, HIGH-FIDELITY, FUNCTIONAL CLONE of what is shown in the screenshot:
+
+1. Visual Analysis & Hierarchy:
+   - If it is a MOBILE APP: Recreate the entire mobile layout with meticulous precision: status bar (time, wifi, battery icons), top header/navbar with back/action icons, segmented tabs, stories or avatar bubbles, card feeds, badges, floating action button, and bottom tab bar with authentic icons and active indicator.
+   - If it is a WEBSITE: Recreate top announcement bar, brand navbar with logo & menu links, hero section, CTA buttons, feature grids, cards, statistics, and footer.
+2. Color Palette & Typography:
+   - Extract the exact hex colors (backgrounds, surfaces, cards, accents, borders, gradients).
+   - Match font weights, uppercase/lowercase text, letter-spacing, and badge styles using Google Fonts (Inter, Plus Jakarta Sans, Poppins) and Tailwind CSS classes.
+3. Realistic Content & Icons:
+   - Replicate the exact headlines, labels, menu items, and button text visible in the screenshot.
+   - For icons, render clean SVG or FontAwesome icons (<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">).
+4. Interactivity:
+   - Make buttons interactive (hover & tap feedback).
+   - Make tabs switchable, inputs editable, and search functional on mock data.
+5. Standalone Output:
+   - Output a single complete HTML file with embedded CSS and JS (using Tailwind CSS CDN <script src="https://cdn.tailwindcss.com"></script>).
+   - Include <meta name="viewport" content="width=device-width, initial-scale=1.0">.
+   - Fully responsive for mobile and desktop screens.
+   - Wrap the entire code in a single markdown \`\`\`html ... \`\`\` code block.
+Your name is Tetagpt, an autonomous cosmic AI creation engine by tetagpt.co.`;
+        } else if (isCloneMode || domainMatch) {
+          const targetName = domainMatch?.domain || (sourceUrl ? new URL(sourceUrl).hostname : 'the target website');
+          systemInstruction = `You are an elite web architect specializing in website cloning.
+The user wants to create an exact clone of: ${domainMatch?.url || sourceUrl || messageText}.
+Your goal is to create an ACCURATELY EXACT, PIXEL-PERFECT, HIGH-FIDELITY CLONE of ${targetName}:
+
+1. Visual Identity & Brand Fidelity:
+   - Match the exact color scheme, fonts, gradients, and design language of ${targetName} (e.g. Netflix dark theme & carousel, Apple minimalist typography & glassmorphic frosted navbar, Airbnb coral #FF385C & pill search bar, Stripe vibrant mesh gradients, Spotify dark neon green #1DB954).
+   - Load Tailwind CSS CDN: <script src="https://cdn.tailwindcss.com"></script>.
+   - Load FontAwesome CDN: <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">.
+2. Structure & Sections:
+   - Exact navigation bar with logo, menu links, search bar, sign-in/action buttons.
+   - High-impact hero section with authentic headlines, subtext, and dual CTA buttons.
+   - Product showcase, card grids with realistic images/icons, testimonials, pricing, or statistics.
+   - Comprehensive multi-column footer with links and social icons.
+3. Realistic Interactivity:
+   - Mobile responsive menu toggle (hamburger menu).
+   - Working tabs, interactive filters, modal dialogs, and smooth transitions.
+4. Output:
+   - Single standalone HTML file with <meta name="viewport" content="width=device-width, initial-scale=1.0">.
+   - Wrap the entire code in a single markdown \`\`\`html ... \`\`\` code block.
+Your name is Tetagpt, an autonomous cosmic AI creation engine by tetagpt.co.`;
         } else if (isGameMode) {
-          systemInstruction = "You are a professional game developer. When asked to build a game, provide a SINGLE block of code containing HTML, CSS, and JavaScript (using Canvas API or standard Web APIs) that can run in a browser. Focus on creating a playable, interactive game with a game loop. Wrap the code in a markdown code block. Your name is Tetagpt, a large learn model by tetagpt.co.";
+          systemInstruction = "You are a professional game developer. When asked to build a game, provide a SINGLE block of self-contained HTML, CSS, and JavaScript (using Canvas API or standard Web APIs) that can run in any browser and play offline. Support dual inputs: keyboard controls (Arrow keys/WASD) for desktop AND responsive on-screen touch controls (Virtual D-Pad/tap buttons) so the game is 100% playable on mobile screens and in fullscreen! Include score tracking, high score saved to localStorage, pause/restart buttons, particle effects, and synthesized sound effects using the Web Audio API. Wrap the code in a single markdown ```html ... ``` code block. Your name is Tetagpt, an autonomous cosmic AI creation engine by tetagpt.co.";
         } else if (is3DMode) {
-          systemInstruction = `You are a professional 3D graphics developer. When asked to create a 3D model or scene, provide a SINGLE block of code containing HTML, CSS, and JavaScript (using Three.js from a CDN) that can run in a browser. \n          Focus on creating a visually stunning 3D experience. \n          Target: ${threeDTarget === 'game' ? 'Integrate this 3D model into a game-like environment with controls.' : 'Create a standalone high-fidelity 3D scene.'}\n          If a reference image is provided, use it as inspiration for the 3D scene. Wrap the code in a markdown code block. Your name is Tetagpt, a large learn model by tetagpt.co.`;
-        } else if (isCloneMode) {
-          systemInstruction = "You are a professional web developer specializing in website cloning. When a user provides a URL, your task is to create a high-fidelity clone of that website using HTML, CSS, and JavaScript in a SINGLE block of code. Use modern CSS (Flexbox, Grid) and Tailwind CSS via CDN. Ensure the clone is fully mobile-responsive. Analyze the provided URL content and replicate the layout, styling, and core functionality as accurately as possible. Wrap the code in a markdown code block. Your name is Tetagpt, a large learn model by tetagpt.co.";
+          systemInstruction = `You are a professional 3D graphics engineer. When asked to create a 3D scene or model, provide a SINGLE block of code containing HTML, CSS, and JavaScript (using Three.js CDN: <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script> and OrbitControls: <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>) that can run in a browser. Focus on creating a visually stunning, responsive 3D experience with realistic lighting, materials, and orbit controls. Target: ${threeDTarget === 'game' ? 'Integrate this 3D model into an interactive game environment with controls.' : 'Create a standalone high-fidelity 3D scene.'} Wrap the code in a single markdown \`\`\`html ... \`\`\` code block. Your name is Tetagpt, an autonomous cosmic AI creation engine by tetagpt.co.`;
+        } else if (isCodingMode) {
+          systemInstruction = "You are a professional web developer. When asked to build an app or website, provide a SINGLE block of code containing HTML, CSS, and JavaScript that can run in a browser. Your code MUST be fully mobile-responsive and include the `<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">` tag. Use modern CSS techniques like Flexbox, Grid, and Tailwind CSS via CDN. Ensure all elements scale correctly on small screens and in fullscreen. Wrap the code in a single markdown ```html ... ``` code block. Your name is Tetagpt, an autonomous cosmic AI creation engine by tetagpt.co.";
         }
 
         const parts: any[] = [{ text: messageText || "Generate based on this image" }];
@@ -1369,23 +1464,24 @@ export default function App() {
                 <div className="p-6 md:p-8 space-y-6">
                   {/* Custom Key */}
                   <div className="space-y-2">
-                    <label className="block text-xs font-black uppercase tracking-widest text-neutral-400">Custom Gemini API Key</label>
+                    <label className="block text-xs font-black uppercase tracking-widest text-neutral-400">Tetagpt API Key</label>
                     <div className="relative">
                       <input
                         type="password"
-                        placeholder="Paste your Gemini key..."
+                        placeholder="Paste your Tetagpt API key..."
                         value={customApiKey}
                         onChange={(e) => setCustomApiKey(e.target.value)}
                         className="w-full bg-neutral-950 border border-white/5 rounded-2xl py-4 px-5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all font-mono"
                       />
                     </div>
                     <p className="text-[10px] text-neutral-500 leading-relaxed font-semibold">
-                      Needed if hosting statically on Netlify, GitHub Pages, or Vercel. Stored securely and only in your local browser history.
+                      Stored securely and only in your local browser history. Powers live AI generation, cloning, games, and 3D modeling.
                     </p>
                     <div className="flex gap-2.5 pt-1">
                       <button
                         type="button"
                         onClick={() => {
+                          localStorage.setItem('teta_custom_api_key', customApiKey);
                           localStorage.setItem('teta_custom_gemini_key', customApiKey);
                           setIsStaticDeployment(false); // test with custom key
                           setTimeout(() => {
@@ -1400,6 +1496,7 @@ export default function App() {
                         type="button"
                         onClick={() => {
                           setCustomApiKey('');
+                          localStorage.removeItem('teta_custom_api_key');
                           localStorage.removeItem('teta_custom_gemini_key');
                           setTimeout(() => {
                             window.location.reload();
@@ -2015,28 +2112,31 @@ export default function App() {
                   </div>
 
                   <div className="flex items-center gap-2 md:gap-3 w-full sm:w-auto justify-end">
+                    {generatedCode && (
+                      <button 
+                        onClick={() => setShowExportModal(true)}
+                        className="p-2 sm:px-4 sm:py-2 bg-emerald-500/10 border border-emerald-500/25 rounded-2xl text-emerald-400 hover:bg-emerald-500 hover:text-black transition-all flex items-center gap-2 shadow-lg shrink-0"
+                        title="Export & Run Locally (Single HTML or Project ZIP)"
+                      >
+                        <FolderDown className="w-4 h-4" />
+                        <span className="text-[10px] font-black uppercase hidden sm:inline tracking-widest">Run Locally / Download</span>
+                      </button>
+                    )}
+
                     {activeTab === 'preview' && (
                       <button 
-                        onClick={() => setIsFullscreen(!isFullscreen)}
+                        onClick={toggleFullscreen}
                         className={cn(
-                          "p-2.5 rounded-2xl border transition-all shadow-lg",
+                          "p-2.5 rounded-2xl border transition-all shadow-lg shrink-0",
                           isFullscreen ? "bg-emerald-500 border-emerald-600 text-black" : "bg-neutral-900/80 border-white/5 text-neutral-400 hover:text-white"
                         )}
-                        title="Toggle Fullscreen"
+                        title="Full Screen (PC & Mobile)"
                       >
                         <Maximize2 className="w-4 h-4" />
                       </button>
                     )}
                     {activeTab === 'code' && generatedCode && (
                       <div className="flex items-center gap-2">
-                        <button 
-                          onClick={downloadSourceCode}
-                          className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-emerald-500 hover:bg-emerald-500 hover:text-black transition-all flex items-center gap-2 shadow-lg"
-                          title="Download Source Code"
-                        >
-                          <Download className="w-4 h-4" />
-                          <span className="text-[10px] font-black uppercase hidden sm:inline tracking-widest">Download</span>
-                        </button>
                         <button 
                           onClick={() => copyToClipboard(generatedCode)}
                           className="p-2.5 bg-neutral-900/80 border border-white/5 rounded-2xl text-neutral-400 hover:text-white transition-all flex items-center gap-2 shadow-lg"
@@ -2054,6 +2154,7 @@ export default function App() {
                         setIs3DMode(false);
                         setIsCloneMode(false);
                         setSourceUrl(null);
+                        setCloneSourceDomain(null);
                       }}
                       className="h-10 px-4 md:px-5 bg-red-500/10 border border-red-500/20 text-red-500 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-red-500 hover:text-white transition-all flex items-center gap-2 shadow-lg whitespace-nowrap"
                     >
@@ -2064,29 +2165,105 @@ export default function App() {
                 </div>
 
                 {/* Content Area */}
-                <div className={cn(
-                  "flex-1 overflow-hidden relative bg-[#050505] preserve-3d",
-                  isFullscreen && "fixed inset-0 z-[100] bg-[#050505]"
-                )}>
-                  {isFullscreen && (
-                    <button 
-                      onClick={() => setIsFullscreen(false)}
-                      className="absolute top-8 right-8 z-[110] p-4 bg-black/50 backdrop-blur-2xl border border-white/10 rounded-2xl text-white hover:bg-black/80 transition-all shadow-2xl"
-                    >
-                      <X className="w-6 h-6" />
-                    </button>
+                <div 
+                  ref={previewContainerRef}
+                  className={cn(
+                    "flex-1 overflow-hidden relative bg-[#050505] preserve-3d",
+                    isFullscreen && "fixed inset-0 z-[120] bg-[#050505] flex flex-col w-screen h-screen"
                   )}
+                >
+                  {isFullscreen && (
+                    <div className="h-14 bg-neutral-900/95 backdrop-blur-xl border-b border-white/10 px-4 md:px-6 flex items-center justify-between z-[130] shrink-0 shadow-2xl">
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 rounded-xl border border-emerald-500/20">
+                          <TetaLogo className="w-4 h-4 text-emerald-400" />
+                          <span className="text-[11px] font-black uppercase tracking-widest text-emerald-400">
+                            {isGameMode ? 'Game Fullscreen' : is3DMode ? '3D Fullscreen' : isCloneMode ? 'Clone Fullscreen' : 'App Fullscreen'}
+                          </span>
+                        </div>
+
+                        {!isGameMode && !is3DMode && (
+                          <div className="hidden sm:flex bg-neutral-950 p-1 rounded-xl border border-white/10">
+                            <button
+                              onClick={() => setPreviewDevice('desktop')}
+                              className={cn(
+                                "px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5",
+                                previewDevice === 'desktop' ? "bg-emerald-500 text-black" : "text-neutral-400 hover:text-white"
+                              )}
+                            >
+                              <Monitor className="w-3.5 h-3.5" />
+                              Desktop
+                            </button>
+                            <button
+                              onClick={() => setPreviewDevice('mobile')}
+                              className={cn(
+                                "px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5",
+                                previewDevice === 'mobile' ? "bg-emerald-500 text-black" : "text-neutral-400 hover:text-white"
+                              )}
+                            >
+                              <Smartphone className="w-3.5 h-3.5" />
+                              Mobile Phone
+                            </button>
+                            <button
+                              onClick={() => setPreviewDevice('tablet')}
+                              className={cn(
+                                "px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5",
+                                previewDevice === 'tablet' ? "bg-emerald-500 text-black" : "text-neutral-400 hover:text-white"
+                              )}
+                            >
+                              <Tablet className="w-3.5 h-3.5" />
+                              Tablet
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {generatedCode && (
+                          <button
+                            onClick={() => setShowExportModal(true)}
+                            className="px-3.5 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500 hover:text-black text-emerald-400 border border-emerald-500/30 text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-md"
+                          >
+                            <FolderDown className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Run Locally</span>
+                          </button>
+                        )}
+                        <button
+                          onClick={toggleFullscreen}
+                          className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 border border-white/10"
+                          title="Exit Fullscreen (ESC)"
+                        >
+                          <Minimize2 className="w-4 h-4" />
+                          <span className="hidden sm:inline">Exit</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   {activeTab === 'preview' ? (
-                    <div className="w-full h-full flex items-center justify-center p-6 md:p-12 bg-neutral-950/50 perspective-1000">
+                    <div className={cn(
+                      "w-full h-full flex items-center justify-center perspective-1000",
+                      isFullscreen 
+                        ? "p-0 bg-black" 
+                        : "p-4 sm:p-6 md:p-10 bg-neutral-950/50"
+                    )}>
                       <motion.div 
                         initial={{ rotateX: 10, y: 20, opacity: 0 }}
                         animate={{ rotateX: 0, y: 0, opacity: 1 }}
                         transition={{ duration: 0.8, ease: "easeOut" }}
                         className={cn(
-                          "bg-white shadow-[0_50px_100px_rgba(0,0,0,0.5)] transition-all duration-700 overflow-hidden relative preserve-3d",
-                          !isGameMode && previewDevice === 'mobile' ? "w-[375px] h-[667px] rounded-[3.5rem] border-[12px] border-neutral-900" : 
-                          !isGameMode && previewDevice === 'tablet' ? "w-[768px] h-[1024px] rounded-[3rem] border-[12px] border-neutral-900" : 
-                          "w-full h-full rounded-3xl border border-white/5"
+                          "bg-white transition-all duration-500 overflow-hidden relative preserve-3d shadow-2xl",
+                          isFullscreen && (isGameMode || is3DMode || previewDevice === 'desktop')
+                            ? "w-full h-full rounded-none border-none shadow-none"
+                            : isFullscreen && previewDevice === 'mobile'
+                            ? (isMobile ? "w-full h-full rounded-none border-none" : "w-[390px] h-[844px] max-h-[94vh] rounded-[3rem] border-[10px] border-neutral-900 shadow-2xl")
+                            : isFullscreen && previewDevice === 'tablet'
+                            ? (isMobile ? "w-full h-full rounded-none border-none" : "w-[768px] h-[1024px] max-h-[94vh] rounded-[2.5rem] border-[10px] border-neutral-900 shadow-2xl")
+                            : !isGameMode && !is3DMode && previewDevice === 'mobile'
+                            ? "w-[375px] h-[667px] max-h-full rounded-[3.5rem] border-[12px] border-neutral-900"
+                            : !isGameMode && !is3DMode && previewDevice === 'tablet'
+                            ? "w-[768px] h-[1024px] max-h-full rounded-[3rem] border-[12px] border-neutral-900"
+                            : "w-full h-full rounded-3xl border border-white/5"
                         )}
                       >
                         {showSource && sourceUrl ? (
@@ -2098,34 +2275,78 @@ export default function App() {
                         ) : generatedCode ? (
                           <iframe 
                             srcDoc={generatedCode}
-                            className="w-full h-full border-none"
+                            className="w-full h-full border-none bg-white"
                             title="Preview"
-                            sandbox="allow-scripts allow-modals"
+                            sandbox="allow-scripts allow-modals allow-forms allow-same-origin"
                           />
                         ) : (
-                          <div className="w-full h-full flex flex-col items-center justify-center text-neutral-400 bg-[#050505] p-12 text-center space-y-8 preserve-3d">
+                          <div className="w-full h-full flex flex-col items-center justify-center text-neutral-400 bg-[#050505] p-6 sm:p-12 text-center space-y-6 overflow-y-auto">
                             <div className="relative">
                               <div className="absolute inset-0 bg-emerald-500/20 blur-[60px] rounded-full animate-pulse" />
                               <motion.div 
                                 animate={{ rotateY: 360 }}
                                 transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
-                                className="relative w-24 h-24 rounded-[2rem] bg-neutral-900 border border-white/5 flex items-center justify-center shadow-2xl preserve-3d"
+                                className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-[2rem] bg-neutral-900 border border-white/5 flex items-center justify-center shadow-2xl preserve-3d"
                               >
-                                {isGameMode ? <Gamepad2 className="w-12 h-12 text-emerald-500" /> : is3DMode ? <Box className="w-12 h-12 text-emerald-500" /> : isCloneMode ? <Copy className="w-12 h-12 text-emerald-500" /> : <Zap className="w-12 h-12 text-emerald-500" />}
+                                {isGameMode ? <Gamepad2 className="w-10 h-10 sm:w-12 sm:h-12 text-emerald-500" /> : is3DMode ? <Box className="w-10 h-10 sm:w-12 sm:h-12 text-emerald-500" /> : isCloneMode ? <Copy className="w-10 h-10 sm:w-12 sm:h-12 text-emerald-500" /> : <Zap className="w-10 h-10 sm:w-12 sm:h-12 text-emerald-500" />}
                               </motion.div>
                             </div>
-                            <div className="space-y-3">
-                              <h2 className="text-2xl font-black text-white tracking-tighter uppercase tracking-[0.1em]">TETA {isGameMode ? 'Game Engine' : is3DMode ? '3D Modeler' : isCloneMode ? 'Cloner' : 'Builder'}</h2>
-                              <p className="text-sm text-neutral-500 max-w-xs mx-auto font-medium leading-relaxed">
+                            
+                            <div className="space-y-2 max-w-lg mx-auto">
+                              <h2 className="text-xl sm:text-2xl font-black text-white tracking-tighter uppercase">
+                                Tetagpt {isGameMode ? 'Game Engine' : is3DMode ? '3D Modeler' : isCloneMode ? 'Website & App Cloner' : 'Builder'}
+                              </h2>
+                              <p className="text-xs sm:text-sm text-neutral-400 font-medium leading-relaxed">
                                 {isGameMode 
-                                  ? "Create interactive games with just a prompt. Describe your game mechanics below." 
+                                  ? "Create interactive arcade, canvas, and WebGL games with mobile touch and desktop keyboard controls." 
                                   : is3DMode 
-                                  ? "Generate stunning 3D models and scenes. Upload a reference photo or describe your vision."
+                                  ? "Generate stunning 3D models and scenes using Three.js with full orbit controls."
                                   : isCloneMode
-                                  ? "Clone any website by dropping a link. Paste your target URL below."
-                                  : "Your vision, coded in seconds. Describe your app below to begin the magic."}
+                                  ? "Enter any domain or upload a screenshot to generate an accurately exact, pixel-perfect copy of any website or mobile app."
+                                  : "Your vision, coded in seconds. Describe your app below to begin."}
                               </p>
                             </div>
+
+                            {/* Clone Mode Interactive Presets and Screenshot Upload */}
+                            {isCloneMode && (
+                              <div className="w-full max-w-md space-y-3 pt-2">
+                                <div className="p-3 bg-neutral-900/90 border border-white/10 rounded-2xl space-y-2.5">
+                                  <span className="text-[10px] font-black uppercase text-emerald-400 tracking-wider block text-left">
+                                    ⚡ 1-Click Popular Website Clones:
+                                  </span>
+                                  <div className="flex flex-wrap gap-1.5 justify-center">
+                                    {[
+                                      { name: 'Apple', domain: 'apple.com' },
+                                      { name: 'Netflix', domain: 'netflix.com' },
+                                      { name: 'Airbnb', domain: 'airbnb.com' },
+                                      { name: 'Stripe', domain: 'stripe.com' },
+                                      { name: 'Spotify', domain: 'spotify.com' },
+                                      { name: 'Linear', domain: 'linear.app' },
+                                      { name: 'Instagram', domain: 'instagram.com' }
+                                    ].map(preset => (
+                                      <button
+                                        key={preset.domain}
+                                        onClick={() => sendMessageManually(`Create an exact pixel-perfect clone of ${preset.domain}`)}
+                                        className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-emerald-500 hover:text-black text-neutral-300 text-[11px] font-bold transition-all border border-white/5"
+                                      >
+                                        {preset.name}
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+
+                                <label className="cursor-pointer block p-4 rounded-2xl border-2 border-dashed border-white/15 hover:border-emerald-500/50 bg-white/[0.02] hover:bg-emerald-500/5 transition-all text-center group">
+                                  <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                                  <div className="flex items-center justify-center gap-2 text-neutral-300 group-hover:text-emerald-400 text-xs font-bold">
+                                    <Camera className="w-4 h-4" />
+                                    <span>Upload Screenshot to Clone Mobile App or Website</span>
+                                  </div>
+                                  <p className="text-[10px] text-neutral-500 mt-1">
+                                    Replicates layout, colors, typography, cards & interactive states
+                                  </p>
+                                </label>
+                              </div>
+                            )}
                           </div>
                         )}
                       </motion.div>
@@ -2346,19 +2567,64 @@ export default function App() {
               <motion.div 
                 initial={{ opacity: 0, scale: 0.9, y: 10 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                className="relative inline-block group self-start"
+                className="relative inline-flex items-center gap-3 p-2 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl group self-start shadow-xl"
               >
                 <img 
                   src={selectedImage} 
                   alt="Selected reference" 
-                  className="w-16 h-16 md:w-24 md:h-24 object-cover rounded-2xl border-2 border-emerald-500/50 shadow-2xl"
+                  className="w-14 h-14 md:w-16 md:h-16 object-cover rounded-xl border border-emerald-500/40 shadow-xl"
                 />
+                <div className="text-left pr-6">
+                  <span className="text-[10px] font-black uppercase text-emerald-400 tracking-wider flex items-center gap-1">
+                    📸 Screenshot Loaded for Exact Clone
+                  </span>
+                  <p className="text-[11px] text-neutral-300 font-medium max-w-xs truncate">
+                    Ready to replicate layout, typography, colors & interactive components
+                  </p>
+                </div>
                 <button 
                   onClick={() => setSelectedImage(null)}
-                  className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full shadow-lg"
+                  className="absolute -top-2 -right-2 p-1 bg-red-500 hover:bg-red-400 text-white rounded-full shadow-lg"
                 >
-                  <X className="w-3 h-3" />
+                  <X className="w-3.5 h-3.5" />
                 </button>
+              </motion.div>
+            )}
+
+            {isCloneMode && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex items-center gap-2 p-2 bg-white/5 backdrop-blur-xl rounded-2xl border border-white/5 shadow-2xl overflow-x-auto no-scrollbar scroll-smooth"
+              >
+                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-900/50 rounded-xl border border-white/5 shrink-0">
+                  <span className="text-[10px] font-black uppercase text-neutral-400 tracking-widest">Clone Target:</span>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewDevice('desktop')}
+                    className={cn(
+                      "px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all",
+                      previewDevice === 'desktop' ? "bg-emerald-500 text-black shadow-md" : "text-neutral-400 hover:text-white"
+                    )}
+                  >
+                    Website Clone
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewDevice('mobile')}
+                    className={cn(
+                      "px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all",
+                      previewDevice === 'mobile' ? "bg-emerald-500 text-black shadow-md" : "text-neutral-400 hover:text-white"
+                    )}
+                  >
+                    Mobile App Clone
+                  </button>
+                </div>
+                <label className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded-xl border border-emerald-500/30 shrink-0 text-[10px] font-black uppercase tracking-wider transition-all">
+                  <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                  <Camera className="w-3.5 h-3.5" />
+                  <span>Upload Screenshot</span>
+                </label>
               </motion.div>
             )}
             
@@ -2412,7 +2678,7 @@ export default function App() {
                     sendMessage();
                   }
                 }}
-                placeholder={is3DMode ? "Describe 3D scene..." : isCloneMode ? "URL to clone..." : "Ask TETA..."}
+                placeholder={is3DMode ? "Describe 3D scene (e.g. Cyberpunk city, solar orbit, terrain)..." : isCloneMode ? "Enter domain to clone (e.g. apple.com, stripe.com) or upload screenshot..." : isGameMode ? "Describe game mechanics (e.g. Retro Space shooter, Platformer)..." : "Ask Tetagpt to build..."}
                 rows={1}
                 className="w-full bg-neutral-900/80 backdrop-blur-3xl border border-white/5 rounded-[2rem] py-4 md:py-5 pl-12 sm:pl-14 md:pl-16 pr-20 sm:pr-24 md:pr-28 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all resize-none text-sm md:text-base min-h-[56px] md:min-h-[64px] max-h-48 shadow-2xl text-white"
               />
@@ -2491,23 +2757,24 @@ export default function App() {
               <div className="p-6 md:p-8 space-y-6">
                 {/* Custom Key */}
                 <div className="space-y-2">
-                  <label className="block text-xs font-black uppercase tracking-widest text-neutral-400">Custom Gemini API Key</label>
+                  <label className="block text-xs font-black uppercase tracking-widest text-neutral-400">Tetagpt API Key</label>
                   <div className="relative">
                     <input
                       type="password"
-                      placeholder="Paste your Gemini key..."
+                      placeholder="Paste your Tetagpt API key..."
                       value={customApiKey}
                       onChange={(e) => setCustomApiKey(e.target.value)}
                       className="w-full bg-neutral-950 border border-white/5 rounded-2xl py-4 px-5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/30 transition-all font-mono"
                     />
                   </div>
                   <p className="text-[10px] text-neutral-500 leading-relaxed font-semibold">
-                    Needed if hosting statically on Netlify, GitHub Pages, or Vercel. Stored securely and only in your local browser history.
+                    Stored securely and only in your local browser history. Powers live AI generation, cloning, games, and 3D modeling.
                   </p>
                   <div className="flex gap-2.5 pt-1">
                     <button
                       type="button"
                       onClick={() => {
+                        localStorage.setItem('teta_custom_api_key', customApiKey);
                         localStorage.setItem('teta_custom_gemini_key', customApiKey);
                         setIsStaticDeployment(false); // test with custom key
                         setTimeout(() => {
@@ -2522,6 +2789,7 @@ export default function App() {
                       type="button"
                       onClick={() => {
                         setCustomApiKey('');
+                        localStorage.removeItem('teta_custom_api_key');
                         localStorage.removeItem('teta_custom_gemini_key');
                         setTimeout(() => {
                           window.location.reload();
@@ -2601,6 +2869,15 @@ export default function App() {
           setUser(u);
           setShowAuthModal(false);
         }} 
+      />
+      {/* Export & Run Locally Modal */}
+      <ExportModal 
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        code={generatedCode}
+        projectName={chats.find(c => c.id === currentChatId)?.title || 'Tetagpt Cosmic Project'}
+        projectType={isGameMode ? 'game' : is3DMode ? '3d' : isCloneMode ? 'clone' : 'app'}
+        domainOrSource={cloneSourceDomain || sourceUrl || undefined}
       />
     </div>
   );

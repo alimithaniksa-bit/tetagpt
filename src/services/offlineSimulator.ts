@@ -57,13 +57,13 @@ export const generateOfflineResponse = (
   if (is3DMode) {
     if (normPrompt.includes('space') || normPrompt.includes('solar') || normPrompt.includes('galaxy') || normPrompt.includes('universe')) {
       return {
-        message: `### TetaGPT (Offline Mode Activated)\n\nI have created a breathtaking **3D Celestial Solar Orbit Simulator**. Since Three.js might be unreachable offline, I built this on a **Hybrid high-fidelity CSS 3D & Math Matrix Projection engine** to guarantee smooth 60fps rendering without any internet connection!`,
+        message: `### TetaGPT (Offline Mode Activated)\n\nI have created a breathtaking **3D Celestial Solar Orbit Simulator**. Since Three.js might be unreachable offline, I built this on a **Hybrid high-fidelity CSS 3D & Math Matrix Projection engine** to guarantee smooth 60fps rendering without any internet connection!\n\n📦 **CAD & Blender Ready:** You can now download this 3D creation directly as a **Blender Project (.py / .obj)** or native **Autodesk AutoCAD File (.dxf)** using the top toolbar buttons!`,
         code: get3DSolarSystemCode()
       };
     }
     // Default Interactive 3D Crystal Model Viewer
     return {
-      message: `### TetaGPT (Offline Mode Activated)\n\nHere is a fully interactive **3D Polyhedron Crystal Geometry Viewer** with customizable parameters, orbital rotation controls, wireframe toggles, and procedural ambient gradient backgrounds. Works entirely offline using an advanced matrix graphics pipeline.`,
+      message: `### TetaGPT (Offline Mode Activated)\n\nHere is a fully interactive **3D Polyhedron Crystal Geometry Viewer** with customizable parameters, orbital rotation controls, wireframe toggles, and procedural ambient gradient backgrounds. Works entirely offline using an advanced matrix graphics pipeline.\n\n📦 **CAD & Blender Ready:** You can now download this 3D model directly as an **Autodesk AutoCAD Drawing (.dxf)** or a **Blender Scene (.py script / .obj package)** from the 3D toolbar or Export modal!`,
       code: get3DCrystalCode(threeDTarget)
     };
   }

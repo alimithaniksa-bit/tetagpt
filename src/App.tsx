@@ -35,19 +35,25 @@ import {
   FolderDown,
   Layers,
   Check,
+  CheckCircle2,
+  Compass,
   ExternalLink
 } from 'lucide-react';
 import Markdown from 'react-markdown';
-import { GoogleGenAI } from "@google/genai";
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { cn } from './lib/utils';
 import { User, Chat, Message } from './types';
-import { generateSpeech } from './services/gemini';
+import { generateSpeech, generateImage, streamTetagpt } from './services/gemini';
 import { generateOfflineResponse } from './services/offlineSimulator';
 import { LandingPage } from './components/LandingPage';
 import { ExportModal } from './components/ExportModal';
 import { downloadStandaloneHtml, downloadProjectZip } from './lib/projectExporter';
+import { 
+  extractOrGenerate3DModel,
+  downloadAutoCadDxf,
+  downloadBlenderPythonScript
+} from './lib/cadBlenderExporter';
 import { 
   auth as firebaseAuth, 
   onAuthStateChanged, 
@@ -431,6 +437,31 @@ export default function App() {
   const [previewDevice, setPreviewDevice] = useState<'mobile' | 'tablet' | 'desktop'>('desktop');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [exportCategory, setExportCategory] = useState<'cad3d' | 'web'>('web');
+  const [cadFeedback, setCadFeedback] = useState<string | null>(null);
+
+  const handleDownloadBlenderQuick = () => {
+    if (!generatedCode) return;
+    const currentTitle = chats.find(c => c.id === currentChatId)?.title || 'Tetagpt_3D_Scene';
+    const model = extractOrGenerate3DModel(generatedCode, currentTitle, '3D Scene');
+    downloadBlenderPythonScript(model);
+    setCadFeedback('Blender Python script (.py) downloaded!');
+    setTimeout(() => setCadFeedback(null), 3000);
+  };
+
+  const handleDownloadAutoCadQuick = () => {
+    if (!generatedCode) return;
+    const currentTitle = chats.find(c => c.id === currentChatId)?.title || 'Tetagpt_3D_Scene';
+    const model = extractOrGenerate3DModel(generatedCode, currentTitle, '3D Scene');
+    downloadAutoCadDxf(model);
+    setCadFeedback('AutoCAD 3D DXF (.dxf) downloaded!');
+    setTimeout(() => setCadFeedback(null), 3000);
+  };
+
+  const openExportFor3D = () => {
+    setExportCategory('cad3d');
+    setShowExportModal(true);
+  };
   const [cloneSourceDomain, setCloneSourceDomain] = useState<string | null>(null);
   const previewContainerRef = useRef<HTMLDivElement>(null);
   const [showSplash, setShowSplash] = useState(false);
@@ -1044,24 +1075,11 @@ export default function App() {
       const isImageRequest = /generate image|draw|create an image|show me an image/i.test(messageText);
 
       if (isImageRequest && !currentImage) {
-        if (!key) {
-          throw new Error('No API key supplied to client for Image generation.');
-        }
-        const aiInstance = new GoogleGenAI({ apiKey: key });
-        const imageModel = aiInstance.models.generateContent({
-          model: 'gemini-2.5-flash-image',
-          contents: [{ parts: [{ text: messageText }] }],
-          config: { imageConfig: { aspectRatio: "1:1" } },
-        });
-
-        const response = await imageModel;
         let imageUrl = '';
-        const parts = response.candidates?.[0]?.content?.parts || [];
-        for (const part of parts) {
-          if (part.inlineData) {
-            imageUrl = `data:image/png;base64,${part.inlineData.data}`;
-            break;
-          }
+        try {
+          imageUrl = (await generateImage(messageText, customApiKey)) || '';
+        } catch (imgErr) {
+          console.error("Image generation error:", imgErr);
         }
 
         const aiMsgId = Math.random().toString(36).substring(7);
@@ -1109,10 +1127,6 @@ export default function App() {
           setCloneSourceDomain(domainMatch.domain);
         }
 
-        if (!key) {
-          throw new Error('No API Key configured for Tetagpt stream. Please enter your API key in Settings.');
-        }
-        const aiInstance = new GoogleGenAI({ apiKey: key });
         let systemInstruction = "Your name is Tetagpt, an autonomous cosmic AI creation engine by tetagpt.co. Always identify yourself as such if asked about your name or origin.";
         
         if (currentImage) {
@@ -1163,35 +1177,11 @@ Your name is Tetagpt, an autonomous cosmic AI creation engine by tetagpt.co.`;
         } else if (isGameMode) {
           systemInstruction = "You are a professional game developer. When asked to build a game, provide a SINGLE block of self-contained HTML, CSS, and JavaScript (using Canvas API or standard Web APIs) that can run in any browser and play offline. Support dual inputs: keyboard controls (Arrow keys/WASD) for desktop AND responsive on-screen touch controls (Virtual D-Pad/tap buttons) so the game is 100% playable on mobile screens and in fullscreen! Include score tracking, high score saved to localStorage, pause/restart buttons, particle effects, and synthesized sound effects using the Web Audio API. Wrap the code in a single markdown ```html ... ``` code block. Your name is Tetagpt, an autonomous cosmic AI creation engine by tetagpt.co.";
         } else if (is3DMode) {
-          systemInstruction = `You are a professional 3D graphics engineer. When asked to create a 3D scene or model, provide a SINGLE block of code containing HTML, CSS, and JavaScript (using Three.js CDN: <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script> and OrbitControls: <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>) that can run in a browser. Focus on creating a visually stunning, responsive 3D experience with realistic lighting, materials, and orbit controls. Target: ${threeDTarget === 'game' ? 'Integrate this 3D model into an interactive game environment with controls.' : 'Create a standalone high-fidelity 3D scene.'} Wrap the code in a single markdown \`\`\`html ... \`\`\` code block. Your name is Tetagpt, an autonomous cosmic AI creation engine by tetagpt.co.`;
+          systemInstruction = `You are a professional 3D graphics engineer and CAD specialist. When asked to create a 3D scene or model, provide a SINGLE block of code containing HTML, CSS, and JavaScript (using Three.js CDN: <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script> and OrbitControls: <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>) that can run in a browser. Focus on creating visually stunning, responsive 3D geometry with realistic lighting, materials, and orbit controls. All 3D models you generate are automatically exportable by the user into native Autodesk AutoCAD (.dxf) and Blender Python (.py / .obj) files, so use clean modular meshes with distinct materials and colors. Target: ${threeDTarget === 'game' ? 'Integrate this 3D model into an interactive game environment with controls.' : 'Create a standalone high-fidelity 3D scene.'} Wrap the code in a single markdown \`\`\`html ... \`\`\` code block. Your name is Tetagpt, an autonomous cosmic AI creation engine by tetagpt.co.`;
         } else if (isCodingMode) {
           systemInstruction = "You are a professional web developer. When asked to build an app or website, provide a SINGLE block of code containing HTML, CSS, and JavaScript that can run in a browser. Your code MUST be fully mobile-responsive and include the `<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">` tag. Use modern CSS techniques like Flexbox, Grid, and Tailwind CSS via CDN. Ensure all elements scale correctly on small screens and in fullscreen. Wrap the code in a single markdown ```html ... ``` code block. Your name is Tetagpt, an autonomous cosmic AI creation engine by tetagpt.co.";
         }
 
-        const parts: any[] = [{ text: messageText || "Generate based on this image" }];
-        if (currentImage) {
-          parts.push({
-            inlineData: {
-              mimeType: "image/png",
-              data: currentImage.split(',')[1]
-            }
-          });
-        }
-
-        const chat = aiInstance.chats.create({
-          model: "gemini-3-flash-preview",
-          config: {
-            systemInstruction,
-            tools: isCloneMode ? [{ urlContext: {} }] : undefined,
-          },
-          history: messages.map(m => ({
-            role: m.role === 'user' ? 'user' : 'model',
-            parts: [{ text: m.content }]
-          }))
-        });
-
-        const result = await chat.sendMessageStream({ message: parts });
-        
         const aiMsgId = Math.random().toString(36).substring(7);
         let fullContent = '';
         
@@ -1207,22 +1197,28 @@ Your name is Tetagpt, an autonomous cosmic AI creation engine by tetagpt.co.`;
           return updated;
         });
 
-        for await (const chunk of result) {
-          const text = chunk.text;
-          fullContent += text;
-          setMessages(prev => {
-            const updated = prev.map(m => m.id === aiMsgId ? { ...m, content: fullContent } : m);
-            localStorage.setItem(`teta_messages_${chatId}`, JSON.stringify(updated));
-            return updated;
-          });
-          
-          if (isCodingMode || isGameMode || is3DMode || isCloneMode) {
-            const codeMatch = fullContent.match(/```(?:html|javascript|css)?\n([\s\S]*?)```/);
-            if (codeMatch) {
-              setGeneratedCode(codeMatch[1]);
+        await streamTetagpt({
+          messages: [...messages, userMsg],
+          systemInstruction,
+          image: currentImage,
+          isCloneMode,
+          customKey: customApiKey,
+          onChunk: (chunkText) => {
+            fullContent += chunkText;
+            setMessages(prev => {
+              const updated = prev.map(m => m.id === aiMsgId ? { ...m, content: fullContent } : m);
+              localStorage.setItem(`teta_messages_${chatId}`, JSON.stringify(updated));
+              return updated;
+            });
+            
+            if (isCodingMode || isGameMode || is3DMode || isCloneMode) {
+              const codeMatch = fullContent.match(/```(?:html|javascript|css)?\n([\s\S]*?)```/);
+              if (codeMatch) {
+                setGeneratedCode(codeMatch[1]);
+              }
             }
           }
-        }
+        });
 
         if (user && !user.isGuest) {
           try {
@@ -1364,7 +1360,7 @@ Your name is Tetagpt, an autonomous cosmic AI creation engine by tetagpt.co.`;
     
     setIsSpeaking(true);
     try {
-      const audioUrl = await generateSpeech(text);
+      const audioUrl = await generateSpeech(text, customApiKey);
       if (audioUrl) {
         const audio = new Audio(audioUrl);
         audio.onended = () => {
@@ -2112,9 +2108,56 @@ Your name is Tetagpt, an autonomous cosmic AI creation engine by tetagpt.co.`;
                   </div>
 
                   <div className="flex items-center gap-2 md:gap-3 w-full sm:w-auto justify-end">
-                    {generatedCode && (
+                    {cadFeedback && (
+                      <motion.span 
+                        initial={{ opacity: 0, y: -4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-xl border border-emerald-500/20"
+                      >
+                        {cadFeedback}
+                      </motion.span>
+                    )}
+
+                    {generatedCode && is3DMode && (
+                      <div className="flex items-center gap-1.5 sm:gap-2">
+                        {/* Quick Blender Download */}
+                        <button
+                          onClick={handleDownloadBlenderQuick}
+                          className="px-2.5 sm:px-3 py-1.5 sm:py-2 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-amber-400 hover:bg-amber-500 hover:text-black transition-all flex items-center gap-1.5 shadow-lg shrink-0 text-[10px] font-black uppercase tracking-wider"
+                          title="Download Blender File (.py auto-importer script)"
+                        >
+                          <Box className="w-3.5 h-3.5 text-amber-400" />
+                          <span>Blender <span className="hidden md:inline">(.py)</span></span>
+                        </button>
+
+                        {/* Quick AutoCAD Download */}
+                        <button
+                          onClick={handleDownloadAutoCadQuick}
+                          className="px-2.5 sm:px-3 py-1.5 sm:py-2 bg-sky-500/10 border border-sky-500/30 rounded-2xl text-sky-400 hover:bg-sky-500 hover:text-black transition-all flex items-center gap-1.5 shadow-lg shrink-0 text-[10px] font-black uppercase tracking-wider"
+                          title="Download AutoCAD File (3D .dxf CAD format)"
+                        >
+                          <Compass className="w-3.5 h-3.5 text-sky-400" />
+                          <span>AutoCAD <span className="hidden md:inline">(.dxf)</span></span>
+                        </button>
+
+                        {/* Full 3D CAD & Local Exporter */}
+                        <button 
+                          onClick={openExportFor3D}
+                          className="p-2 sm:px-3.5 sm:py-2 bg-emerald-500/10 border border-emerald-500/25 rounded-2xl text-emerald-400 hover:bg-emerald-500 hover:text-black transition-all flex items-center gap-1.5 shadow-lg shrink-0 text-[10px] font-black uppercase tracking-wider"
+                          title="Full 3D CAD & Blender Studio Export Modal"
+                        >
+                          <FolderDown className="w-4 h-4" />
+                          <span className="hidden sm:inline">CAD Suite</span>
+                        </button>
+                      </div>
+                    )}
+
+                    {generatedCode && !is3DMode && (
                       <button 
-                        onClick={() => setShowExportModal(true)}
+                        onClick={() => {
+                          setExportCategory('web');
+                          setShowExportModal(true);
+                        }}
                         className="p-2 sm:px-4 sm:py-2 bg-emerald-500/10 border border-emerald-500/25 rounded-2xl text-emerald-400 hover:bg-emerald-500 hover:text-black transition-all flex items-center gap-2 shadow-lg shrink-0"
                         title="Export & Run Locally (Single HTML or Project ZIP)"
                       >
@@ -2219,13 +2262,37 @@ Your name is Tetagpt, an autonomous cosmic AI creation engine by tetagpt.co.`;
                       </div>
 
                       <div className="flex items-center gap-2">
+                        {generatedCode && is3DMode && (
+                          <>
+                            <button
+                              onClick={handleDownloadBlenderQuick}
+                              className="px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500 hover:text-black text-amber-300 border border-amber-500/30 text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-md"
+                              title="Download Blender Python (.py) Script"
+                            >
+                              <Box className="w-3.5 h-3.5" />
+                              <span>Blender</span>
+                            </button>
+                            <button
+                              onClick={handleDownloadAutoCadQuick}
+                              className="px-3 py-1.5 rounded-xl bg-sky-500/15 hover:bg-sky-500 hover:text-black text-sky-300 border border-sky-500/30 text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-md"
+                              title="Download AutoCAD (.dxf) File"
+                            >
+                              <Compass className="w-3.5 h-3.5" />
+                              <span>AutoCAD</span>
+                            </button>
+                          </>
+                        )}
                         {generatedCode && (
                           <button
-                            onClick={() => setShowExportModal(true)}
+                            onClick={() => {
+                              if (is3DMode) setExportCategory('cad3d');
+                              else setExportCategory('web');
+                              setShowExportModal(true);
+                            }}
                             className="px-3.5 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500 hover:text-black text-emerald-400 border border-emerald-500/30 text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-md"
                           >
                             <FolderDown className="w-3.5 h-3.5" />
-                            <span className="hidden sm:inline">Run Locally</span>
+                            <span className="hidden sm:inline">{is3DMode ? 'CAD Suite' : 'Run Locally'}</span>
                           </button>
                         )}
                         <button
@@ -2532,6 +2599,53 @@ Your name is Tetagpt, an autonomous cosmic AI creation engine by tetagpt.co.`;
                             {msg.content}
                           </Markdown>
                         </div>
+
+                        {/* 3D CAD & Blender Quick Actions for Model responses */}
+                        {msg.role === 'model' && (is3DMode || msg.content.includes('three.min.js') || msg.content.includes('CAD & Blender')) && (
+                          <div className="mt-3 p-3.5 rounded-2xl bg-neutral-950/80 border border-emerald-500/20 flex flex-wrap items-center justify-between gap-3 shadow-lg">
+                            <div className="flex items-center gap-2.5">
+                              <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                <Box className="w-4 h-4" />
+                              </div>
+                              <div>
+                                <div className="text-[11px] font-black uppercase tracking-wider text-white flex items-center gap-2">
+                                  <span>3D Model Ready for CAD & Blender</span>
+                                  <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 text-[9px]">1-Click Export</span>
+                                </div>
+                                <div className="text-[10px] text-neutral-400">
+                                  Download native AutoCAD (.dxf) & Blender (.py / .obj) files
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <button
+                                onClick={handleDownloadBlenderQuick}
+                                className="px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500 hover:text-black text-amber-300 border border-amber-500/30 text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-md"
+                                title="Download Blender Python Script (.py)"
+                              >
+                                <Box className="w-3.5 h-3.5" />
+                                Blender (.py)
+                              </button>
+                              <button
+                                onClick={handleDownloadAutoCadQuick}
+                                className="px-3 py-1.5 rounded-xl bg-sky-500/15 hover:bg-sky-500 hover:text-black text-sky-300 border border-sky-500/30 text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-md"
+                                title="Download Autodesk AutoCAD File (.dxf)"
+                              >
+                                <Compass className="w-3.5 h-3.5" />
+                                AutoCAD (.dxf)
+                              </button>
+                              <button
+                                onClick={openExportFor3D}
+                                className="px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500 hover:text-black text-emerald-300 border border-emerald-500/30 text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shadow-md"
+                                title="Open Full 3D CAD & Blender Studio Modal"
+                              >
+                                <FolderDown className="w-3.5 h-3.5" />
+                                CAD Suite
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
                         {msg.role === 'model' && msg.content && !msg.content.includes('![Generated Image]') && (
                           <motion.button 
                             whileHover={{ scale: 1.1, x: 5 }}
@@ -2878,6 +2992,7 @@ Your name is Tetagpt, an autonomous cosmic AI creation engine by tetagpt.co.`;
         projectName={chats.find(c => c.id === currentChatId)?.title || 'Tetagpt Cosmic Project'}
         projectType={isGameMode ? 'game' : is3DMode ? '3d' : isCloneMode ? 'clone' : 'app'}
         domainOrSource={cloneSourceDomain || sourceUrl || undefined}
+        defaultCategory={exportCategory}
       />
     </div>
   );

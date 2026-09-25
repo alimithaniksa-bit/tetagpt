@@ -902,14 +902,55 @@ export default function App() {
     }
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
+  const compressImage = (file: File, maxDim = 1280, quality = 0.85): Promise<string> => {
+    return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setSelectedImage(reader.result as string);
+      reader.onerror = reject;
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onerror = () => resolve(e.target?.result as string);
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(e.target?.result as string);
+            return;
+          }
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.src = e.target?.result as string;
       };
       reader.readAsDataURL(file);
+    });
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      try {
+        const compressed = await compressImage(file);
+        setSelectedImage(compressed);
+      } catch {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setSelectedImage(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+      }
     }
   };
 
@@ -921,6 +962,7 @@ export default function App() {
 
   const sendMessage = async (e?: React.FormEvent, overrideInput?: string) => {
     e?.preventDefault();
+    let activeAiMsgId: string | null = null;
     const messageText = overrideInput || input;
     if (!messageText.trim() && !selectedImage || isLoading) return;
 
@@ -1223,6 +1265,7 @@ Your name is Tetagpt, an autonomous cosmic AI creation engine by tetagpt.co.`;
         }
 
         const aiMsgId = Math.random().toString(36).substring(7);
+        activeAiMsgId = aiMsgId;
         let fullContent = '';
         
         setMessages(prev => {
@@ -1292,30 +1335,33 @@ Your name is Tetagpt, an autonomous cosmic AI creation engine by tetagpt.co.`;
 
     } catch (error) {
       console.error('Chat error: Falling back to offline simulator:', error);
-      await handleOfflineSimulation(messageText, chatId);
+      await handleOfflineSimulation(messageText, chatId, activeAiMsgId || undefined);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleOfflineSimulation = async (text: string, finalChatId: string) => {
+  const handleOfflineSimulation = async (text: string, finalChatId: string, existingMsgId?: string) => {
     try {
       const offlineResult = generateOfflineResponse(text, isCodingMode, isGameMode, is3DMode, isCloneMode, threeDTarget);
       
-      const aiMsgId = Math.random().toString(36).substring(7);
-      const placeholderMsg: Message = {
-        id: aiMsgId,
-        chat_id: finalChatId,
-        role: 'model',
-        content: '',
-        created_at: new Date().toISOString()
-      };
+      const aiMsgId = existingMsgId || Math.random().toString(36).substring(7);
+      
+      if (!existingMsgId) {
+        const placeholderMsg: Message = {
+          id: aiMsgId,
+          chat_id: finalChatId,
+          role: 'model',
+          content: '',
+          created_at: new Date().toISOString()
+        };
 
-      setMessages(prev => {
-        const updated = [...prev, placeholderMsg];
-        localStorage.setItem(`teta_messages_${finalChatId}`, JSON.stringify(updated));
-        return updated;
-      });
+        setMessages(prev => {
+          const updated = [...prev, placeholderMsg];
+          localStorage.setItem(`teta_messages_${finalChatId}`, JSON.stringify(updated));
+          return updated;
+        });
+      }
 
       // Simulating genuine progressive printed text stream
       const fullContent = offlineResult.message + (offlineResult.code ? `\n\n\`\`\`html\n${offlineResult.code}\n\`\`\`` : "");

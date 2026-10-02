@@ -138,13 +138,23 @@ app.delete("/api/chats/:id", ensureSession, (req, res) => {
 
 // --- Tetagpt Cosmic AI Service Endpoints ---
 
+function cleanApiKey(key?: string | null): string | null {
+  if (!key || typeof key !== "string") return null;
+  let cleaned = key.trim();
+  cleaned = cleaned.replace(/^["'`]|["'`]$/g, "").trim();
+  const match = cleaned.match(/AIzaSy[A-Za-z0-9_-]{33}/);
+  if (match) return match[0];
+  return cleaned || null;
+}
+
 async function runWithApiKeyFallback<T>(
   customKey: string | undefined,
   task: (ai: GoogleGenAI) => Promise<T>
 ): Promise<T> {
-  const serverKey = process.env.GEMINI_API_KEY;
+  const userKey = cleanApiKey(customKey);
+  const serverKey = cleanApiKey(process.env.GEMINI_API_KEY);
   const keysToTry: string[] = [];
-  if (customKey && customKey.trim()) keysToTry.push(customKey.trim());
+  if (userKey) keysToTry.push(userKey);
   if (serverKey && !keysToTry.includes(serverKey)) keysToTry.push(serverKey);
 
   if (keysToTry.length === 0) {
@@ -167,6 +177,54 @@ async function runWithApiKeyFallback<T>(
   throw lastError;
 }
 
+app.post("/api/tetagpt/validate-key", ensureSession, async (req, res) => {
+  const { apiKey } = req.body;
+  const cleanKey = cleanApiKey(apiKey);
+  if (!cleanKey) {
+    return res.status(400).json({ 
+      success: false, 
+      error: "Invalid API key format. A valid Gemini API key usually starts with 'AIzaSy' and is 39 characters." 
+    });
+  }
+
+  const testModels = ["gemini-3.1-flash-lite", "gemini-3.8-flash", "gemini-flash-latest"];
+  let lastErr: any = null;
+
+  for (const model of testModels) {
+    try {
+      const ai = new GoogleGenAI({
+        apiKey: cleanKey,
+        httpOptions: { headers: { 'User-Agent': 'aistudio-build' } },
+      });
+      
+      const testResult = await ai.models.generateContent({
+        model,
+        contents: [{ parts: [{ text: "hi" }] }]
+      });
+
+      if (testResult?.text) {
+        return res.json({ 
+          success: true, 
+          model,
+          message: `Connected successfully! Gemini API key is valid and active (${model}).` 
+        });
+      }
+    } catch (err: any) {
+      console.warn(`Validation attempt with ${model} failed:`, err?.message || err);
+      lastErr = err;
+    }
+  }
+
+  let msg = lastErr?.message || "Invalid API key or model access restriction";
+  try {
+    const parsed = JSON.parse(msg);
+    if (parsed?.error?.message) {
+      msg = parsed.error.message;
+    }
+  } catch (_) {}
+  return res.status(400).json({ success: false, error: msg });
+});
+
 app.post("/api/tetagpt/stream", ensureSession, async (req, res) => {
   const { messages, systemInstruction, image, isCloneMode, customKey } = req.body;
 
@@ -175,23 +233,24 @@ app.post("/api/tetagpt/stream", ensureSession, async (req, res) => {
   res.setHeader("Connection", "keep-alive");
 
   try {
-    const serverKey = process.env.GEMINI_API_KEY;
+    const userKey = cleanApiKey(customKey);
+    const serverKey = cleanApiKey(process.env.GEMINI_API_KEY);
     const keysToTry: string[] = [];
-    if (customKey && typeof customKey === "string" && customKey.trim()) {
-      keysToTry.push(customKey.trim());
+    if (userKey) {
+      keysToTry.push(userKey);
     }
     if (serverKey && !keysToTry.includes(serverKey)) {
       keysToTry.push(serverKey);
     }
 
     if (keysToTry.length === 0) {
-      res.write(`data: ${JSON.stringify({ error: "No API key configured on server." })}\n\n`);
+      res.write(`data: ${JSON.stringify({ error: "No API key configured. Please enter your Gemini API key in Settings." })}\n\n`);
       res.end();
       return;
     }
 
-    // Models in priority order (gemini-3.8-flash primary, gemini-3.1-flash-lite on 503 high-demand or rate limit)
-    const candidateModels = ["gemini-3.8-flash", "gemini-3.1-flash-lite"];
+    // Models in priority order (gemini-3.1-flash-lite fast primary, gemini-3.8-flash, gemini-flash-latest, gemini-3.1-pro-preview)
+    const candidateModels = ["gemini-3.1-flash-lite", "gemini-3.8-flash", "gemini-flash-latest", "gemini-3.1-pro-preview"];
 
     const contents: any[] = (messages || []).slice(0, -1).map((m: any) => ({
       role: m.role === 'user' ? 'user' : 'model',
@@ -220,6 +279,7 @@ app.post("/api/tetagpt/stream", ensureSession, async (req, res) => {
 
     let streamSucceeded = false;
     let lastError: any = null;
+    let chunksWritten = 0;
 
     for (const keyToUse of keysToTry) {
       if (streamSucceeded) break;
@@ -244,6 +304,7 @@ app.post("/api/tetagpt/stream", ensureSession, async (req, res) => {
           for await (const chunk of streamResponse) {
             const text = chunk.text;
             if (text) {
+              chunksWritten++;
               res.write(`data: ${JSON.stringify({ text })}\n\n`);
             }
           }
@@ -253,15 +314,28 @@ app.post("/api/tetagpt/stream", ensureSession, async (req, res) => {
           res.end();
           return;
         } catch (attemptErr: any) {
-          console.warn(`Streaming attempt failed (model: ${modelName}):`, attemptErr?.message || attemptErr);
+          console.warn(`Streaming attempt failed (key: ${keyToUse.slice(0, 8)}..., model: ${modelName}):`, attemptErr?.message || attemptErr);
           lastError = attemptErr;
+          if (chunksWritten > 0) {
+            // Already started streaming to client, don't restart with another model into same stream
+            res.write("data: [DONE]\n\n");
+            res.end();
+            return;
+          }
         }
       }
     }
 
-    if (!streamSucceeded) {
+    if (!streamSucceeded && chunksWritten === 0) {
       console.error("All streaming attempts failed. Last error:", lastError);
-      res.write(`data: ${JSON.stringify({ error: lastError?.message || "Failed to generate stream" })}\n\n`);
+      let errMsg = lastError?.message || "Failed to generate stream with Gemini API";
+      try {
+        const parsed = JSON.parse(errMsg);
+        if (parsed?.error?.message) {
+          errMsg = parsed.error.message;
+        }
+      } catch (_) {}
+      res.write(`data: ${JSON.stringify({ error: errMsg })}\n\n`);
       res.end();
     }
   } catch (error: any) {
@@ -277,12 +351,13 @@ app.post("/api/tetagpt/image", ensureSession, async (req, res) => {
     return res.status(400).json({ error: "Prompt is required" });
   }
 
-  const serverKey = process.env.GEMINI_API_KEY;
+  const userKey = cleanApiKey(customKey);
+  const serverKey = cleanApiKey(process.env.GEMINI_API_KEY);
   const keysToTry: string[] = [];
-  if (customKey && customKey.trim()) keysToTry.push(customKey.trim());
+  if (userKey) keysToTry.push(userKey);
   if (serverKey && !keysToTry.includes(serverKey)) keysToTry.push(serverKey);
 
-  const candidateModels = ["gemini-3.1-flash-lite-image", "gemini-3.1-flash-image"];
+  const candidateModels = ["gemini-3.1-flash-lite-image", "gemini-3.1-flash-image", "gemini-2.5-flash-image"];
 
   for (const keyToUse of keysToTry) {
     for (const model of candidateModels) {

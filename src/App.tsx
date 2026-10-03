@@ -57,7 +57,6 @@ import {
 import { 
   auth as firebaseAuth, 
   onAuthStateChanged, 
-  signOut as firebaseSignOut,
   db,
   collection,
   doc,
@@ -69,7 +68,6 @@ import {
   deleteDoc,
   serverTimestamp
 } from './services/firebase';
-import { AuthModal } from './components/AuthModal';
 import { SettingsModal } from './components/SettingsModal';
 import { cleanApiKey } from './services/gemini';
 
@@ -473,7 +471,6 @@ export default function App() {
   const [showInstructions, setShowInstructions] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
   const [customApiKey, setCustomApiKey] = useState(
     cleanApiKey(localStorage.getItem('teta_custom_api_key')) || 
     cleanApiKey(localStorage.getItem('teta_custom_gemini_key')) || 
@@ -1562,16 +1559,7 @@ Your name is Tetagpt, an autonomous cosmic AI creation engine by tetagpt.co.`;
         <LandingPage 
           onGetStarted={handleGetStarted} 
           onOpenSettings={() => setShowSettingsModal(true)} 
-          onOpenAuth={() => setShowAuthModal(true)}
           user={user}
-        />
-        <AuthModal 
-          isOpen={showAuthModal} 
-          onClose={() => setShowAuthModal(false)} 
-          onAuthSuccess={(u) => {
-            setUser(u);
-            setShowAuthModal(false);
-          }} 
         />
         {/* Render Settings Modal directly on top of landing page */}
         <SettingsModal
@@ -1720,35 +1708,11 @@ Your name is Tetagpt, an autonomous cosmic AI creation engine by tetagpt.co.`;
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-bold truncate text-white">{user.name}</p>
-                    {user.isGuest && (
-                      <span className="text-[8px] bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded-full font-black uppercase tracking-tighter border border-emerald-500/20">Guest</span>
-                    )}
+                    <span className="text-[8px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full font-black uppercase tracking-tighter border border-emerald-500/20">Ready</span>
                   </div>
-                  <p className="text-[10px] text-neutral-500 truncate font-medium">{user.email}</p>
+                  <p className="text-[10px] text-neutral-500 truncate font-medium">{user.email || 'workspace@tetagpt.co'}</p>
                 </div>
               </div>
-
-              {user.isGuest ? (
-                <button 
-                  onClick={() => setShowAuthModal(true)}
-                  className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-black uppercase tracking-widest transition-all shadow-[0_4px_15px_rgba(16,185,129,0.2)]"
-                >
-                  <Sparkles className="w-4 h-4 text-black animate-pulse" />
-                  Sign In / Sign Up
-                </button>
-              ) : (
-                <button 
-                  onClick={async () => {
-                    await firebaseSignOut(firebaseAuth);
-                    localStorage.removeItem('teta_user');
-                    window.location.reload();
-                  }}
-                  className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl border border-red-500/20 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-black uppercase tracking-widest transition-all"
-                >
-                  <LogOut className="w-4 h-4 text-red-400" />
-                  Sign Out
-                </button>
-              )}
 
               <button 
                 onClick={() => setShowSettingsModal(true)}
@@ -2945,14 +2909,6 @@ Your name is Tetagpt, an autonomous cosmic AI creation engine by tetagpt.co.`;
           localStorage.setItem('teta_force_offline', val ? 'true' : 'false');
         }}
         isStaticDeployment={isStaticDeployment}
-      />
-      <AuthModal 
-        isOpen={showAuthModal} 
-        onClose={() => setShowAuthModal(false)} 
-        onAuthSuccess={(u) => {
-          setUser(u);
-          setShowAuthModal(false);
-        }} 
       />
       {/* Export & Run Locally Modal */}
       <ExportModal 
